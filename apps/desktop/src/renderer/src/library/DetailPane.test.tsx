@@ -76,6 +76,15 @@ describe('DetailPane', () => {
     expect(screen.getByRole('tab', { name: 'Details' })).toHaveAttribute('aria-selected', 'true')
   })
 
+  it('scrolls back to the top when another prompt is selected', () => {
+    show(detailOf(REVIEW))
+    render(<DetailPane library={library} />)
+    const pane = screen.getByRole('region', { name: 'Prompt details' })
+    pane.scrollTop = 300
+    show(detailOf('---\ntitle: Other\n---\nHi', 'other'))
+    expect(pane.scrollTop).toBe(0)
+  })
+
   it('starts each prompt with its own answers', async () => {
     const user = userEvent.setup()
     show(detailOf(REVIEW))

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormField } from 'prompt-lang'
 import type { DiagnosticView } from '../../../shared/library'
 import type { PromptDetail } from '../../../shared/ipc'
@@ -43,6 +43,12 @@ function Detail(props: { detail: PromptDetail; library: ReadyLibrary }): React.J
   const { summary } = props.detail
   // Kept while moving between prompts, so the tab you were on stays put.
   const [tab, setTab] = useState<Tab>('fill')
+  const scrollRef = useRef<HTMLElement>(null)
+
+  // This pane stays mounted while moving between prompts, so start each one at the top.
+  useEffect(() => {
+    if (scrollRef.current) scrollRef.current.scrollTop = 0
+  }, [summary.id])
 
   function onTabKeyDown(event: React.KeyboardEvent<HTMLButtonElement>): void {
     const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
@@ -56,7 +62,7 @@ function Detail(props: { detail: PromptDetail; library: ReadyLibrary }): React.J
   }
 
   return (
-    <section aria-label="Prompt details" className="min-h-0 overflow-y-auto p-6">
+    <section ref={scrollRef} aria-label="Prompt details" className="min-h-0 overflow-y-auto p-6">
       <header>
         <h2 className="text-xl font-semibold tracking-tight">{summary.title}</h2>
         <p className="mt-0.5 font-mono text-xs text-zinc-500 dark:text-zinc-400">{summary.id}.md</p>
