@@ -4,7 +4,10 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
-  main: {},
+  main: {
+    // prompt-lang ships TypeScript source, so bundle it instead of requiring it at runtime.
+    build: { externalizeDeps: { exclude: ['prompt-lang'] } }
+  },
   preload: {
     // Sandboxed preloads can only require 'electron', so bundle everything else.
     build: { externalizeDeps: false }

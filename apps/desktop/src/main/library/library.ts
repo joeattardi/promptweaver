@@ -136,6 +136,15 @@ export class Library {
     await this.queue
   }
 
+  /**
+   * Re-reads these files now, without waiting for the watcher to notice them.
+   * Used after the app itself writes a file, so the very next read is current.
+   */
+  async refresh(paths: string[]): Promise<void> {
+    for (const path of paths) this.noteChange(path, this.generation)
+    await this.settled()
+  }
+
   snapshot(): LibrarySnapshot {
     const conflicted = this.conflictedAliases()
     const prompts = [...this.entries.values()]

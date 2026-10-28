@@ -5,27 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MiniSearchIndex } from '../search/minisearch-index'
 import { Library, LibraryError } from './library'
 import { MAX_PROMPT_BYTES } from './scan'
-import type { FileEvent, WatchFactory, WatchListener } from './watcher'
-
-/** A watcher that does nothing until the test fires events. */
-function fakeWatcher() {
-  const listeners: WatchListener[] = []
-  const closed: boolean[] = []
-  const factory: WatchFactory = async (_root, listener) => {
-    const index = listeners.push(listener) - 1
-    closed[index] = false
-    return {
-      close: async () => {
-        closed[index] = true
-      }
-    }
-  }
-  return {
-    factory,
-    closed,
-    emit: (event: FileEvent, which = listeners.length - 1) => listeners[which]?.onEvent(event)
-  }
-}
+import { fakeWatcher } from './fake-watcher'
+import type { FileEvent } from './watcher'
 
 let dir: string
 let library: Library
@@ -364,6 +345,14 @@ describe('file events', () => {
     await fire('add', '.hidden.md')
     expect(ids()).toEqual(['a'])
     expect(listener).not.toHaveBeenCalled()
+  })
+
+  it('re-reads files on request, without a watcher event', async () => {
+    await write('made-by-app.md', prompt('Made By App'))
+    expect(ids()).toEqual(['a'])
+    await library.refresh([path('made-by-app.md'), path('not-a-prompt.txt')])
+    expect(ids()).toEqual(['a', 'made-by-app'])
+    expect(library.search('made').map((p) => p.id)).toEqual(['made-by-app'])
   })
 
   it('ignores events after close', async () => {
