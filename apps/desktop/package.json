@@ -9,8 +9,9 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
-    "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json",
-    "postinstall": "install-electron"
+    "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json && tsc -p tsconfig.e2e.json",
+    "postinstall": "install-electron",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "chokidar": "^6.0.0",

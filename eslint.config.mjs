@@ -19,7 +19,12 @@ export default defineConfig(
     }
   },
   {
-    files: ['*.{js,mjs,ts}', 'apps/desktop/*.ts', 'apps/desktop/src/{main,preload}/**/*.ts'],
+    files: [
+      '*.{js,mjs,ts}',
+      'apps/desktop/*.ts',
+      'apps/desktop/e2e/**/*.ts',
+      'apps/desktop/src/{main,preload}/**/*.ts'
+    ],
     languageOptions: { globals: globals.node }
   },
   {

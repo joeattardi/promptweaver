@@ -4,3 +4,4 @@ coverage
 package-lock.json
 CLAUDE.md
 packages/prompt-lang/src/fixtures
+apps/desktop/e2e/fixtures
