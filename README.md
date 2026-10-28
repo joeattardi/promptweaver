@@ -41,7 +41,7 @@ Select a prompt and the **Fill in** tab shows its questions beside a live previe
 
 - A choice between a few options is a list: Up/Down move through it, the number keys 1-9 choose directly, and typing a few letters jumps to a match. Longer lists are a drop-down.
 - In a multiple-choice list, Up/Down move and Space ticks.
-- Fields marked `from: clipboard` start with whatever is on your clipboard when the form opens.
+- Fields marked `from: clipboard` start with whatever is on your clipboard when the form opens. If you copy something else later, **Paste from clipboard** next to the field refills it.
 - The app remembers your answers for each prompt and fills them in next time. Fields filled from the clipboard are not remembered, so pasted text isn't kept on disk. The answers are stored in `state.json` in the app's data folder, never in your prompt files.
 
 ### Trying the app with a throwaway library
@@ -68,21 +68,28 @@ npm run start -w apps/desktop  # run the production bundle locally
 
 Run these from the repository root:
 
-| Command                   | What it does                                      |
-| ------------------------- | ------------------------------------------------- |
-| `npm test`                | Runs every test once (Vitest, all workspaces)     |
-| `npm run test:watch`      | Runs tests in watch mode                          |
-| `npm test -w prompt-lang` | Runs only the `prompt-lang` tests                 |
-| `npm run typecheck`       | Type-checks every workspace with `tsc`            |
-| `npm run lint`            | Runs ESLint, then checks formatting with Prettier |
-| `npm run format`          | Formats files with Prettier                       |
+| Command                   | What it does                                                           |
+| ------------------------- | ---------------------------------------------------------------------- |
+| `npm test`                | Runs every unit and component test once (Vitest, all workspaces)       |
+| `npm run test:watch`      | Runs those tests in watch mode                                         |
+| `npm test -w prompt-lang` | Runs only the `prompt-lang` tests                                      |
+| `npm run test:e2e`        | Builds the app, then runs the end-to-end tests (Playwright) against it |
+| `npm run typecheck`       | Type-checks every workspace with `tsc`                                 |
+| `npm run lint`            | Runs ESLint, then checks formatting with Prettier                      |
+| `npm run format`          | Formats files with Prettier                                            |
+
+There are three layers of tests:
+
+- **Unit tests** (`*.test.ts`, next to the code) cover `prompt-lang`, the search index and the main process: the library, settings, state and copy service.
+- **Component tests** (`*.test.tsx` under `apps/desktop/src/renderer`) render the React UI in jsdom with Testing Library, against a fake `window.api`. They cover the form's keyboard behaviour, validation, the live preview, copying, and the main window's tabs, list and search. Shared helpers are in `src/renderer/src/test/`.
+- **End-to-end tests** (`apps/desktop/e2e/*.spec.ts`) launch the real built app with Playwright, against a throwaway data folder and a copy of the fixture library in `e2e/fixtures/`. Inside the app the clipboard is replaced by an in-memory one, so the tests never read or overwrite your real clipboard. Run `npm run build` first, or use `npm run test:e2e`, which does both. Failure screenshots and traces go to `apps/desktop/test-results/`.
 
 A few library tests use the real file watcher and wait for events to arrive, so the full run takes a few seconds longer than a pure unit run.
 
-Run all three before committing:
+Run these before committing:
 
 ```sh
-npm run typecheck && npm run lint && npm test
+npm run typecheck && npm run lint && npm test && npm run test:e2e
 ```
 
 ## Repository layout

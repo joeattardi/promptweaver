@@ -28,7 +28,7 @@ The product name is Promptweaver (domain: promptweaver.app). Keep it in as few p
 - `yaml` library (Document API) for frontmatter. Do NOT use gray-matter's stringify: it destroys comments and key order. Split frontmatter from the body ourselves.
 - CodeMirror 6 for the prompt editor (later phase)
 - chokidar for watching the library folder (later phase)
-- Vitest for tests
+- Vitest for tests, with jsdom and Testing Library for React component tests, and Playwright (Electron) for end-to-end tests
 - npm (with npm workspaces). Do not use pnpm or yarn.
 
 Keep dependencies minimal. Ask before adding anything not listed here.
@@ -304,7 +304,8 @@ Most prompts start life as something that worked once, so capturing one must tak
 ```
 npm install
 npm run dev                  # run the desktop app
-npm test                     # run all tests
+npm test                     # run all unit and component tests
+npm run test:e2e             # build, then run the Playwright end-to-end tests (apps/desktop/e2e)
 npm test -w prompt-lang      # run one workspace's tests
 npm run typecheck            # tsc in every workspace
 npm run lint                 # ESLint + Prettier check
