@@ -332,6 +332,7 @@ Work one phase at a time. Stop at the end of each phase and summarize what exist
 - Prompt packs: import a folder, zip, or GitHub URL of prompts as a unit. Publish the file format as a small open spec.
 - A CLI built on `prompt-lang` (for example `promptweaver render code-review --language=Go`). Keep `prompt-lang` free of Electron, React, and Node-only APIs so this stays easy.
 - Includes/partials using the reserved `{{> name}}` syntax.
+- Git integration to version your prompts.
 
 ## Open questions (ask me before deciding)
 
