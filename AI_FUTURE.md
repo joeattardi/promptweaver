@@ -95,6 +95,22 @@ interface LocalLLM {
 - Running the finished prompt locally to show output. Same quality problem, and it blurs what the app is for.
 - Anything needing long context.
 
+## First task: prototype before committing
+
+The riskiest assumption is that a small local model (roughly 1-4B parameters) produces good enough output for "turn this into a template". Before any UI, integration, or packaging work:
+
+1. Run node-llama-cpp in a throwaway script against 10-20 real prompts, with 2-3 candidate models.
+2. Use schema-constrained output and validate each result with `prompt-lang` (`parse`, `lint`).
+3. Judge the proposed fields by hand: right spans, sensible types and options, no broken templates.
+4. Also try an embedding model for semantic search on a realistic library.
+5. Decide go / no-go and pick the default models from the results.
+
+If the output is too weak, reconsider scope (metadata and search only) or the cloud section below, before building anything.
+
+## Streamlined UX target
+
+One switch, "Enable AI features", downloads a single recommended model. No model picker by default, no provider settings, no keys. Features appear in context (a button in the editor, better search results) and are absent when AI is off.
+
 ## Costs and risks
 
 - Native binaries need `asarUnpack` configuration, separate arm64 and x64 builds, and signing and notarization of the extra `.node` and dylib files. Verify this early; it is the most likely source of packaging surprises.
@@ -111,9 +127,9 @@ interface LocalLLM {
 - Whether any feature warrants the Apple Foundation Models backend.
 - How to update `CLAUDE.md` (non-goals, "no network" rule) when this milestone is approved.
 
-## Stretch goals: cloud providers (bring your own account)
+## Deferred: cloud providers (bring your own account)
 
-Optional, after the local-model work above. These contradict the "no network, no accounts" goals in `CLAUDE.md`, so they need an explicit decision and a documented opt-in. Findings below come largely from secondary sources (researched 2026-10-28) and must be re-verified against official docs before building.
+**Decision: local-only for now.** The priority features are narrow tasks (classification, extraction, structured output) that small local models handle well when output is schema-constrained and checked by `prompt-lang`. Cloud providers would add login or key setup, a privacy disclosure, a CSP exception, and provider settings, and the auth landscape is unstable. Revisit only if the local prototype (see "First task") proves too weak. The research below is kept for that case. These would contradict the "no network, no accounts" goals in `CLAUDE.md`, so they need an explicit decision and a documented opt-in. Findings below come largely from secondary sources (researched 2026-10-28) and must be re-verified against official docs before building.
 
 Goal: let users power AI features with an account they already have, without generating and pasting an API key where possible. A stronger model would also make the "not doing" items (whole-prompt generation) more viable, though they should stay off when the local model is active.
 
@@ -140,6 +156,10 @@ Goal: let users power AI features with an account they already have, without gen
 - Show a clear disclosure whenever a cloud provider is active: prompt text leaves the machine.
 - The network exception (and CSP) is scoped to the chosen provider's hosts, and only while that provider is enabled.
 - Cloud providers are off by default; the app behaves exactly as today unless the user opts in.
+
+### Cheap escape hatch
+
+If power users ask, add an optional "custom endpoint" setting (Ollama, LM Studio, or any OpenAI-compatible URL). It needs almost no UX or maintenance and avoids all hosted-account auth.
 
 ### Open questions
 
