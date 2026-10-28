@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import type { FormField } from 'prompt-lang'
 import type { DiagnosticView } from '../../../shared/library'
 import type { PromptDetail } from '../../../shared/ipc'
+import { FillPanel } from '../fill/FillPanel'
 import { useLibrary, type ReadyLibrary } from './store'
 
 const SEVERITY_LABEL: Record<DiagnosticView['severity'], string> = {
@@ -15,7 +17,7 @@ const SEVERITY_CLASS: Record<DiagnosticView['severity'], string> = {
   info: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300'
 }
 
-/** Read-only view of the selected prompt. Phase 3 adds the fill-in form; Phase 5 the editor. */
+/** The selected prompt: fill it in and copy it, or look at its details. Phase 5 adds the editor. */
 export function DetailPane(props: { library: ReadyLibrary }): React.JSX.Element {
   const detail = useLibrary((s) => s.detail)
   const query = useLibrary((s) => s.query)
@@ -30,11 +32,28 @@ export function DetailPane(props: { library: ReadyLibrary }): React.JSX.Element 
   return <Detail detail={detail} library={props.library} />
 }
 
+type Tab = 'fill' | 'details'
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'fill', label: 'Fill in' },
+  { id: 'details', label: 'Details' }
+]
+
 function Detail(props: { detail: PromptDetail; library: ReadyLibrary }): React.JSX.Element {
-  const { summary, body, diagnostics, form } = props.detail
-  const conflicts = props.library.aliasConflicts.filter((c) =>
-    summary.conflictingAliases.some((a) => a.trim().toLowerCase() === c.alias)
-  )
+  const { summary } = props.detail
+  // Kept while moving between prompts, so the tab you were on stays put.
+  const [tab, setTab] = useState<Tab>('fill')
+
+  function onTabKeyDown(event: React.KeyboardEvent<HTMLButtonElement>): void {
+    const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0
+    if (step === 0) return
+    event.preventDefault()
+    const next = TABS[(TABS.findIndex((t) => t.id === tab) + step + TABS.length) % TABS.length]
+    if (next) {
+      setTab(next.id)
+      document.getElementById(tabId(next.id))?.focus()
+    }
+  }
 
   return (
     <section aria-label="Prompt details" className="min-h-0 overflow-y-auto p-6">
@@ -44,6 +63,61 @@ function Detail(props: { detail: PromptDetail; library: ReadyLibrary }): React.J
         {summary.description !== '' && <p className="mt-3">{summary.description}</p>}
       </header>
 
+      <div
+        role="tablist"
+        aria-label="Prompt view"
+        className="mt-5 flex gap-1 border-b border-zinc-200 dark:border-zinc-700"
+      >
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            id={tabId(t.id)}
+            type="button"
+            role="tab"
+            aria-selected={tab === t.id}
+            aria-controls={panelId(t.id)}
+            tabIndex={tab === t.id ? 0 : -1}
+            onClick={() => setTab(t.id)}
+            onKeyDown={onTabKeyDown}
+            className={`-mb-px rounded-t-md border-b-2 px-3 py-1.5 text-sm font-medium focus-visible:outline-2 focus-visible:outline-blue-600 ${
+              tab === t.id
+                ? 'border-blue-600 text-zinc-900 dark:text-zinc-100'
+                : 'border-transparent text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <div role="tabpanel" id={panelId(tab)} aria-labelledby={tabId(tab)} className="mt-5">
+        {tab === 'fill' ? (
+          // Keyed so each prompt starts with its own answers.
+          <FillPanel
+            key={summary.id}
+            detail={props.detail}
+            onShowDetails={() => setTab('details')}
+          />
+        ) : (
+          <Details detail={props.detail} library={props.library} />
+        )}
+      </div>
+    </section>
+  )
+}
+
+const tabId = (tab: Tab): string => `detail-tab-${tab}`
+const panelId = (tab: Tab): string => `detail-panel-${tab}`
+
+/** Everything about a prompt except filling it in: aliases, tags, problems, questions and the template. */
+function Details(props: { detail: PromptDetail; library: ReadyLibrary }): React.JSX.Element {
+  const { summary, body, diagnostics, form } = props.detail
+  const conflicts = props.library.aliasConflicts.filter((c) =>
+    summary.conflictingAliases.some((a) => a.trim().toLowerCase() === c.alias)
+  )
+
+  return (
+    <>
       {(summary.tags.length > 0 || summary.aliases.length > 0) && (
         <dl className="mt-4 flex flex-col gap-2 text-sm">
           {summary.aliases.length > 0 && (
@@ -115,7 +189,7 @@ function Detail(props: { detail: PromptDetail; library: ReadyLibrary }): React.J
       <pre className="max-h-96 overflow-auto rounded-md bg-zinc-100 p-3 font-mono text-xs break-words whitespace-pre-wrap dark:bg-zinc-800">
         {body === '' ? '(empty)' : body}
       </pre>
-    </section>
+    </>
   )
 }
 

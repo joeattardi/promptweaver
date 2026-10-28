@@ -2,7 +2,7 @@
 
 A free, local-first desktop app for managing a library of reusable AI prompt templates. Each prompt is a Markdown file with YAML frontmatter that declares a fill-in form. You answer the questions and get a finished prompt on your clipboard.
 
-> **Status:** early development (Phase 2). You can pick a library folder, then browse and search your prompts and see each prompt's questions and any problems in it. Edits made to the files on disk show up immediately. The fill-in form, quick launcher, and editor aren't built yet, so you can't use a prompt from the app yet. The `prompt-lang` package (parser, linter, renderer, form model, and editing operations) is complete and tested. There are no packaged installers yet.
+> **Status:** early development (Phase 3). You can pick a library folder, browse and search your prompts, fill in a prompt's form, see a live preview, and copy the finished prompt to your clipboard. Edits made to the files on disk show up immediately. The quick launcher and the editor aren't built yet. The `prompt-lang` package (parser, linter, renderer, form model, and editing operations) is complete and tested. There are no packaged installers yet.
 
 ## Requirements
 
@@ -34,6 +34,15 @@ On first launch the app shows a welcome screen. Nothing is created on disk until
 Each `*.md` file is one prompt, and subfolders act as categories. Files and folders starting with a dot are ignored, and files must be UTF-8 text under 1 MB. Edit the files in any editor: the app notices changes, additions, renames and deletions straight away. Files it can't load are listed in the app instead of silently skipped.
 
 The folder you chose is saved in `settings.json` in the app's data folder (on macOS, `~/Library/Application Support/Promptweaver`).
+
+### Using a prompt
+
+Select a prompt and the **Fill in** tab shows its questions beside a live preview of the finished prompt. Press **Copy prompt** (or Cmd/Ctrl+Enter from anywhere in the form) to put the result on your clipboard. Enter in a single-line field also copies. If a required answer is missing, focus moves to it instead. The **Details** tab shows the prompt's aliases, tags, problems and template.
+
+- A choice between a few options is a list: Up/Down move through it, the number keys 1-9 choose directly, and typing a few letters jumps to a match. Longer lists are a drop-down.
+- In a multiple-choice list, Up/Down move and Space ticks.
+- Fields marked `from: clipboard` start with whatever is on your clipboard when the form opens.
+- The app remembers your answers for each prompt and fills them in next time. Fields filled from the clipboard are not remembered, so pasted text isn't kept on disk. The answers are stored in `state.json` in the app's data folder, never in your prompt files.
 
 ### Trying the app with a throwaway library
 
