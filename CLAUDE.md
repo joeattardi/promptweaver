@@ -314,6 +314,13 @@ npm run build                # electron-vite production build into apps/desktop/
 
 `npm run dev` fails with `Cannot read properties of undefined (reading 'isPackaged')` if `ELECTRON_RUN_AS_NODE` is set in the environment (some editor-integrated shells set it). Run `env -u ELECTRON_RUN_AS_NODE npm run dev` in that case.
 
+To run the built app against a throwaway data folder (first-run testing, scripted UI checks over `--remote-debugging-port`), build first and launch Electron directly. `electron-vite dev` and `preview` reject unknown flags:
+
+```
+npm run build
+npx electron apps/desktop --user-data-dir=/tmp/promptweaver-try --remote-debugging-port=9333
+```
+
 ## Build order
 
 1. **Phase 1: scaffold + `prompt-lang`.** Monorepo, electron-vite app that opens a window, and the full `prompt-lang` package with tests. No real UI yet.
