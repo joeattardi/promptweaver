@@ -1,0 +1,8 @@
+node_modules
+out
+dist
+coverage
+.vite
+.eslintcache
+.DS_Store
+*.log*
