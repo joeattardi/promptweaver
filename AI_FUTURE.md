@@ -110,3 +110,40 @@ interface LocalLLM {
 - Whether to support the existing-Ollama provider in the first release or later.
 - Whether any feature warrants the Apple Foundation Models backend.
 - How to update `CLAUDE.md` (non-goals, "no network" rule) when this milestone is approved.
+
+## Stretch goals: cloud providers (bring your own account)
+
+Optional, after the local-model work above. These contradict the "no network, no accounts" goals in `CLAUDE.md`, so they need an explicit decision and a documented opt-in. Findings below come largely from secondary sources (researched 2026-10-28) and must be re-verified against official docs before building.
+
+Goal: let users power AI features with an account they already have, without generating and pasting an API key where possible. A stronger model would also make the "not doing" items (whole-prompt generation) more viable, though they should stay off when the local model is active.
+
+### Auth options
+
+| Provider | Status | Notes |
+|---|---|---|
+| **Claude (subscription login)** | **Do not build.** | Anthropic restricts Pro/Max subscription OAuth tokens to its own apps; third-party use is against its terms and reportedly blocked server-side. No public program for registering third-party OAuth clients. Claude API access is by API key only. |
+| **Sign in with ChatGPT** | Investigate. | OpenAI is rolling out plan-usage sharing for third-party apps (Plus/Pro allowance, per-app caps). The developer quickstart (developers.openai.com/siwc/quickstart) describes an open-source flow issuing OAuth credentials for eligible Responses API requests with no API key. May be limited to partners or open-source projects (our license is undecided), and sign-in vs. plan-usage are separate grants. Sources disagree; very new. |
+| **OpenRouter OAuth (PKCE)** | Viable today. | Browser login, then the app exchanges a code for a user-controlled API key. User pays OpenRouter directly and can reach Claude, GPT, Gemini, etc. Keys are revocable, can be labeled and given an expiry. Docs show a localhost callback; verify a loopback or custom-protocol callback for a desktop app. Downside: third-party intermediary, user needs credits. |
+| **Paste an API key** | Fallback, under "Advanced". | OpenAI, Anthropic, or a local Ollama / LM Studio endpoint (`localhost:11434`). |
+
+### UX ladder
+
+1. Local model (default, private, free).
+2. Sign in with ChatGPT, if confirmed available to us.
+3. Sign in with OpenRouter (the route to Claude that respects Anthropic's terms).
+4. Paste an API key (advanced).
+
+### Requirements
+
+- All providers sit behind the same provider abstraction as `LocalLLM`. Features must not care which backend is active.
+- Store credentials in the OS keychain via Electron's `safeStorage`, never in the settings JSON.
+- Show a clear disclosure whenever a cloud provider is active: prompt text leaves the machine.
+- The network exception (and CSP) is scoped to the chosen provider's hosts, and only while that provider is enabled.
+- Cloud providers are off by default; the app behaves exactly as today unless the user opts in.
+
+### Open questions
+
+- Is "Sign in with ChatGPT" available to a free desktop app, and under what license or approval terms?
+- Does OpenRouter's OAuth accept a desktop callback (loopback port or custom protocol)?
+- Is the extra complexity worth it if the local model covers the priority features?
+- Which features, if any, should require a cloud provider?
