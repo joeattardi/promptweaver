@@ -49,6 +49,12 @@ describe('FillService.open', () => {
   })
 })
 
+describe('FillService.readClipboard', () => {
+  it('gives the clipboard text as it is now', async () => {
+    expect(await setup('fresh').service.readClipboard()).toBe('fresh')
+  })
+})
+
 describe('FillService.copy', () => {
   it('renders with the supplied clipboard and the clock, and writes the result', async () => {
     const { service, written } = setup()

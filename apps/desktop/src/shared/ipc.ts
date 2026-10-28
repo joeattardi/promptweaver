@@ -50,6 +50,8 @@ export interface IpcContract {
   'library:search': { args: [query: string]; result: PromptSummary[] }
   /** Starts filling in a prompt: its remembered answers and the current clipboard. Null if it's gone. */
   'fill:open': { args: [id: string]; result: FillSession | null }
+  /** The clipboard text right now, for refilling a `from: clipboard` field after the form opened. */
+  'fill:read-clipboard': { args: []; result: string }
   /**
    * Checks the answers, renders the prompt, and puts it on the clipboard.
    * `clipboard` is the text from `fill:open`, so the copy matches the preview.
@@ -80,6 +82,7 @@ export interface RendererApi {
   getPrompt(id: string): Promise<PromptDetail | null>
   searchPrompts(query: string): Promise<PromptSummary[]>
   openFill(id: string): Promise<FillSession | null>
+  readClipboard(): Promise<string>
   copyPrompt(id: string, values: Values, clipboard: string): Promise<CopyResult>
   /** Calls `listener` whenever the library changes. Returns an unsubscribe function. */
   onLibraryChanged(listener: (payload: IpcEventPayload<'library:changed'>) => void): () => void

@@ -55,6 +55,7 @@ export function FillPanel(props: {
             values={fill.values}
             issues={fill.issues}
             onChange={fill.setValue}
+            onRefill={(fieldId) => void fill.refill(fieldId)}
             onSubmit={() => void fill.submit()}
             footer={
               <div className="flex items-center gap-3">

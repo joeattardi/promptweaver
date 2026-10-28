@@ -22,6 +22,8 @@ export interface FillFormProps {
   onChange: (fieldId: string, value: FieldValue) => void
   /** Copy the result. Called for Enter in a single-line field and Cmd/Ctrl+Enter anywhere in the form. */
   onSubmit: () => void
+  /** Shows a "Paste from clipboard" button on `from: clipboard` fields; called with that field's id. */
+  onRefill?: (fieldId: string) => void
   /** Problems to show against their fields. */
   issues?: readonly ValueIssue[]
   /** Focus the first field when the form appears. */
@@ -42,6 +44,7 @@ export function FillForm({
   issues = [],
   onChange,
   onSubmit,
+  onRefill,
   autoFocus = false,
   footer,
   ref
@@ -49,7 +52,9 @@ export function FillForm({
   const root = useRef<HTMLFormElement>(null)
 
   function focusField(fieldId: string): void {
-    const group = root.current?.querySelector<HTMLElement>(`[data-field="${CSS.escape(fieldId)}"]`)
+    const group = [...(root.current?.querySelectorAll<HTMLElement>('[data-field]') ?? [])].find(
+      (el) => el.dataset['field'] === fieldId
+    )
     const target =
       group?.querySelector<HTMLElement>('input:checked, input[tabindex="0"]') ??
       group?.querySelector<HTMLElement>('input, textarea, select')
@@ -90,6 +95,7 @@ export function FillForm({
           value={shownValue(field, values)}
           issue={issues.find((i) => i.fieldId === field.id)}
           onChange={(value) => onChange(field.id, value)}
+          onRefill={onRefill ? () => onRefill(field.id) : undefined}
         />
       ))}
       {footer}
@@ -101,6 +107,7 @@ function Question(props: {
   field: FormField
   value: FieldValue
   issue: ValueIssue | undefined
+  onRefill: (() => void) | undefined
   onChange: (value: FieldValue) => void
 }): React.JSX.Element {
   const { field, issue } = props
@@ -137,6 +144,17 @@ function Question(props: {
             {field.required && <Required />}
           </label>
         )}
+        {props.onRefill &&
+          (field.type === 'text' || field.type === 'textarea') &&
+          field.from === 'clipboard' && (
+            <button
+              type="button"
+              onClick={props.onRefill}
+              className="ml-3 text-xs text-blue-700 underline focus-visible:outline-2 focus-visible:outline-blue-600 dark:text-blue-400"
+            >
+              Paste from clipboard
+            </button>
+          )}
         {field.help !== undefined && (
           <p id={helpId} className="text-xs text-zinc-500 dark:text-zinc-400">
             {field.help}

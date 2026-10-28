@@ -29,6 +29,10 @@ export class FillService {
     return { remembered: this.deps.state.lastValues(id), clipboard }
   }
 
+  readClipboard(): Promise<string> {
+    return this.deps.clipboard.readText()
+  }
+
   async copy(id: string, values: Values, clipboard: string): Promise<CopyResult> {
     const entry = this.deps.prompts.entry(id)
     if (entry === null) return { status: 'missing' }

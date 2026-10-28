@@ -99,6 +99,7 @@ function registerIpc(library: LibraryService, fill: FillService): void {
     await library.whenReady()
     return fill.open(id)
   })
+  handle(origins, 'fill:read-clipboard', none, () => fill.readClipboard())
   handle(
     origins,
     'fill:copy',

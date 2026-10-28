@@ -25,6 +25,8 @@ export function useFill(detail: PromptDetail, formRef: RefObject<FillFormHandle 
   const [status, setStatus] = useState<FillStatus | null>(null)
   const [busy, setBusy] = useState(false)
   const [now, setNow] = useState(() => new Date())
+  // Set when a field is refilled, so `{{clipboard}}` follows the text just pasted.
+  const [refilled, setRefilled] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -51,10 +53,13 @@ export function useFill(detail: PromptDetail, formRef: RefObject<FillFormHandle 
     return () => clearTimeout(timer)
   }, [status])
 
-  const clipboard = session?.clipboard ?? ''
+  const clipboard = refilled ?? session?.clipboard ?? ''
   const values = useMemo<Values>(
-    () => ({ ...initialValues(detail.form, session?.remembered ?? {}, clipboard), ...edits }),
-    [detail.form, session, clipboard, edits]
+    () => ({
+      ...initialValues(detail.form, session?.remembered ?? {}, session?.clipboard ?? ''),
+      ...edits
+    }),
+    [detail.form, session, edits]
   )
   const issues = useMemo(() => validateValues(parsed, values), [parsed, values])
   const preview = useMemo(
@@ -66,6 +71,21 @@ export function useFill(detail: PromptDetail, formRef: RefObject<FillFormHandle 
     setNow(new Date())
     setEdits((previous) => ({ ...previous, [fieldId]: value }))
     setStatus(null)
+  }
+
+  /** Replaces one `from: clipboard` field with what is on the clipboard now. */
+  async function refill(fieldId: string): Promise<void> {
+    try {
+      const text = await window.api.readClipboard()
+      if (text.trim() === '') {
+        setStatus({ kind: 'error', message: 'The clipboard has no text.' })
+        return
+      }
+      setRefilled(text)
+      setValue(fieldId, text)
+    } catch (error) {
+      setStatus({ kind: 'error', message: describe(error) })
+    }
   }
 
   /** Copies the finished prompt, or focuses the first answer that is missing. */
@@ -80,7 +100,7 @@ export function useFill(detail: PromptDetail, formRef: RefObject<FillFormHandle 
     }
     setBusy(true)
     try {
-      const result = await window.api.copyPrompt(id, values, session.clipboard)
+      const result = await window.api.copyPrompt(id, values, clipboard)
       switch (result.status) {
         case 'copied':
           setStatus({ kind: 'copied' })
@@ -122,6 +142,7 @@ export function useFill(detail: PromptDetail, formRef: RefObject<FillFormHandle 
     status,
     busy,
     setValue,
+    refill,
     submit
   }
 }
