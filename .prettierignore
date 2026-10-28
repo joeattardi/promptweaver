@@ -3,3 +3,4 @@ dist
 coverage
 package-lock.json
 CLAUDE.md
+packages/prompt-lang/src/fixtures

@@ -30,7 +30,7 @@ export default defineConfig(
   {
     // prompt-lang must stay pure: no Node, Electron, React, or ambient clock/randomness.
     files: ['packages/prompt-lang/src/**/*.ts'],
-    ignores: ['**/*.test.ts', 'packages/prompt-lang/src/test-utils/**'],
+    ignores: ['**/*.test.ts', 'packages/prompt-lang/src/test-utils.ts'],
     rules: {
       'no-restricted-imports': [
         'error',
