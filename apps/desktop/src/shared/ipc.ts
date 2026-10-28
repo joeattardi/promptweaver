@@ -2,6 +2,7 @@
 // To add a method: add a channel to `IpcContract`, a method to `RendererApi`,
 // wire it in the preload, and register a handler (with an args schema) in main.
 
+import type { ValueIssue, Values } from 'prompt-lang'
 import type { LibraryState, PromptDetail, PromptSummary } from './library'
 
 export type { LibraryState, PromptDetail, PromptSummary }
@@ -19,6 +20,22 @@ export interface LibraryActionResult {
   error: string | null
 }
 
+/** What a window needs to open a prompt's form. */
+export interface FillSession {
+  /** The values last used with this prompt (may no longer fit the form; the window checks). */
+  remembered: Values
+  /** The clipboard text right now. Pre-fills `from: clipboard` fields and is `{{clipboard}}`. */
+  clipboard: string
+}
+
+export type CopyResult =
+  /** The finished prompt is on the clipboard. */
+  | { status: 'copied' }
+  /** Nothing was copied: these answers are missing or invalid. */
+  | { status: 'invalid'; issues: ValueIssue[] }
+  /** Nothing was copied: the prompt was deleted or renamed in the meantime. */
+  | { status: 'missing' }
+
 export interface IpcContract {
   'app:get-info': { args: []; result: AppInfo }
   'library:get-state': { args: []; result: LibraryState }
@@ -31,6 +48,13 @@ export interface IpcContract {
   'library:get-prompt': { args: [id: string]; result: PromptDetail | null }
   /** Best matches first; an exact alias match is always first. Empty query gives nothing. */
   'library:search': { args: [query: string]; result: PromptSummary[] }
+  /** Starts filling in a prompt: its remembered answers and the current clipboard. Null if it's gone. */
+  'fill:open': { args: [id: string]; result: FillSession | null }
+  /**
+   * Checks the answers, renders the prompt, and puts it on the clipboard.
+   * `clipboard` is the text from `fill:open`, so the copy matches the preview.
+   */
+  'fill:copy': { args: [id: string, values: Values, clipboard: string]; result: CopyResult }
 }
 
 export type IpcChannel = keyof IpcContract
@@ -55,6 +79,8 @@ export interface RendererApi {
   addStarterPrompts(): Promise<LibraryActionResult>
   getPrompt(id: string): Promise<PromptDetail | null>
   searchPrompts(query: string): Promise<PromptSummary[]>
+  openFill(id: string): Promise<FillSession | null>
+  copyPrompt(id: string, values: Values, clipboard: string): Promise<CopyResult>
   /** Calls `listener` whenever the library changes. Returns an unsubscribe function. */
   onLibraryChanged(listener: (payload: IpcEventPayload<'library:changed'>) => void): () => void
 }

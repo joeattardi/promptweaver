@@ -26,6 +26,8 @@ export interface DiagnosticView {
 
 export interface PromptDetail {
   summary: PromptSummary
+  /** The whole file, which the form window parses to render a live preview. */
+  source: string
   /** The template text after the frontmatter. */
   body: string
   diagnostics: DiagnosticView[]

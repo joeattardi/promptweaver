@@ -163,6 +163,11 @@ export class Library {
     return entry ? toDetail(entry, toSummary(entry, this.conflictedAliases())) : null
   }
 
+  /** The parsed prompt with this id, or null if there is none. */
+  entry(id: string): PromptEntry | null {
+    return this.entries.get(id) ?? null
+  }
+
   /** Best matches first, with an exact alias match always on top. */
   search(query: string, limit?: number): PromptSummary[] {
     const conflicted = this.conflictedAliases()

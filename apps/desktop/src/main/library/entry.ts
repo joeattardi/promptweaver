@@ -87,6 +87,7 @@ export function toSummary(entry: PromptEntry, conflicted: ReadonlySet<string>): 
 export function toDetail(entry: PromptEntry, summary: PromptSummary): PromptDetail {
   return {
     summary,
+    source: entry.text,
     body: bodyOf(entry),
     diagnostics: entry.diagnostics.map((d): DiagnosticView => ({
       severity: d.severity,

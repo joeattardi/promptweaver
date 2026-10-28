@@ -32,6 +32,8 @@ const api: RendererApi = {
   addStarterPrompts: () => invoke('library:add-starters'),
   getPrompt: (id) => invoke('library:get-prompt', id),
   searchPrompts: (query) => invoke('library:search', query),
+  openFill: (id) => invoke('fill:open', id),
+  copyPrompt: (id, values, clipboard) => invoke('fill:copy', id, values, clipboard),
   onLibraryChanged: (listener) => subscribe('library:changed', listener)
 }
 
