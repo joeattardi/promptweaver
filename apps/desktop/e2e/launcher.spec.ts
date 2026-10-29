@@ -83,14 +83,17 @@ test.describe('summoning', () => {
   })
 
   test('does not hide itself the instant it appears', async ({ app }) => {
-    await summon(app)
-    await app.app.evaluate(({ BrowserWindow }) => {
-      BrowserWindow.getAllWindows()
-        .find((w) => w.getBounds().width === 640)
-        ?.emit('blur')
+    // All inside the app, so the timing is the app's and not the test's round trips.
+    const stillVisible = await app.app.evaluate(async ({ app: electronApp, BrowserWindow }) => {
+      const win = BrowserWindow.getAllWindows().find((w) => w.getBounds().width === 640)
+      if (!win) throw new Error('No launcher window')
+      electronApp.emit('promptweaver:press', 'Control+Alt+Space', { pressed: false })
+      while (!win.isVisible()) await new Promise((resolve) => setTimeout(resolve, 1))
+      win.emit('blur') // the window system settling right after showing
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      return win.isVisible()
     })
-    await app.launcher.waitForTimeout(150)
-    expect(await app.launcherVisible()).toBe(true)
+    expect(stillVisible).toBe(true)
   })
 })
 

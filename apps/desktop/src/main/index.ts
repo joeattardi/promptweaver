@@ -24,7 +24,7 @@ import { applySecurityPolicy, type TrustedOrigins } from './security'
 import { MiniSearchIndex } from './search/minisearch-index'
 import { SettingsStore } from './settings'
 import { StateStore } from './state'
-import { createFakeShortcuts } from './test-hooks'
+import { createFakeShortcuts, makeUnobtrusive } from './test-hooks'
 import { AppTray } from './tray'
 import { createLauncherWindow, createMainWindow } from './windows'
 
@@ -90,9 +90,14 @@ async function start(): Promise<void> {
   })
   const launcherData = new LauncherService({ library: service, state })
 
+  const hideWindows =
+    process.env['PROMPTWEAVER_TEST_HOOKS'] === '1' &&
+    process.env['PROMPTWEAVER_TEST_HIDDEN'] === '1'
+
   const main = new MainWindowController({
     create: ({ show }) => {
       const win = createMainWindow(devServerUrl, { show })
+      if (hideWindows) makeUnobtrusive(win)
       mainBrowserWindow = win
       win.once('closed', () => {
         if (mainBrowserWindow === win) mainBrowserWindow = null
@@ -106,6 +111,11 @@ async function start(): Promise<void> {
   })
 
   const launcherWindow = createLauncherWindow(devServerUrl)
+  if (hideWindows) {
+    makeUnobtrusive(launcherWindow)
+    // No Dock icon bouncing or appearing either.
+    app.dock?.hide()
+  }
   const launcher = new LauncherController(launcherWindow, {
     suggestions: () => launcherData.suggestions(),
     readClipboard: () => clipboard.readText(),
