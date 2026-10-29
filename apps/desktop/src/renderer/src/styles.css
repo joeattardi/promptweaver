@@ -20,9 +20,17 @@ html[data-launcher] body {
   box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.1);
 }
 
+/* With vibrancy the surface only tints the material behind it. Lower these to show more of it. */
+html[data-vibrancy] .launcher-surface {
+  background-color: rgb(255 255 255 / 0.6);
+}
+
 @media (prefers-color-scheme: dark) {
   .launcher-surface {
     background-color: #18181b;
     box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.12);
+  }
+  html[data-vibrancy] .launcher-surface {
+    background-color: rgb(24 24 27 / 0.55);
   }
 }
