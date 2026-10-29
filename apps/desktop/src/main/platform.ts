@@ -59,20 +59,11 @@ export function launcherWindowOptions(): BrowserWindowConstructorOptions {
     skipTaskbar: true,
     alwaysOnTop: true,
     hasShadow: true,
+    // The window is the page's solid background, so it must match the page's light or dark surface.
+    backgroundColor: launcherBackground(),
     // The system rounds the corners of a frameless window (macOS, Windows 11); the page doesn't.
     roundedCorners: true,
-    ...(isMac
-      ? {
-          type: 'panel' as const,
-          // Frosted glass: macOS blurs what is behind the window, and the page tints it.
-          // The window must be transparent, or its own backing hides the effect.
-          transparent: true,
-          vibrancy: 'popover' as const,
-          visualEffectState: 'active' as const,
-          backgroundColor: '#00000000'
-        }
-      : // Elsewhere the window is the page's solid background, so it matches the page's surface.
-        { backgroundColor: launcherBackground() })
+    ...(isMac ? { type: 'panel' as const } : {})
   }
 }
 
@@ -83,12 +74,9 @@ function launcherBackground(): string {
 
 /** One-time setup after the launcher window exists. */
 export function configureLauncherWindow(win: BrowserWindow): void {
-  // With vibrancy (macOS) the window stays clear; elsewhere it follows the light or dark setting.
-  if (!isMac) {
-    nativeTheme.on('updated', () => {
-      if (!win.isDestroyed()) win.setBackgroundColor(launcherBackground())
-    })
-  }
+  nativeTheme.on('updated', () => {
+    if (!win.isDestroyed()) win.setBackgroundColor(launcherBackground())
+  })
   // Above everything, including full-screen apps' windows.
   win.setAlwaysOnTop(true, 'screen-saver')
   if (isMac) {
