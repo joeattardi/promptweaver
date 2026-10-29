@@ -1,3 +1,5 @@
+import appIcon from '../../../../build/icon.png'
+
 /** A key cap, for the shortcut hints. */
 export function Kbd(props: { children: string }): React.JSX.Element {
   return (
@@ -26,6 +28,14 @@ export function HintBar(props: {
         </span>
       ))}
       {props.trailing !== undefined && <span className="ml-auto">{props.trailing}</span>}
+      {/* Decorative, and quiet: the app's mark in the corner. */}
+      <img
+        src={appIcon}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        className={`size-[18px] shrink-0 opacity-60 select-none ${props.trailing === undefined ? 'ml-auto' : ''}`}
+      />
     </div>
   )
 }

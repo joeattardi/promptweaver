@@ -5,3 +5,8 @@ declare global {
     api: RendererApi
   }
 }
+
+declare module '*.png' {
+  const url: string
+  export default url
+}
