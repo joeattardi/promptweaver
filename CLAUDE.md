@@ -9,7 +9,8 @@ The product name is Promptweaver (domain: promptweaver.app). Keep it in as few p
 **Goals (v1)**
 - **Headline feature: the quick launcher.** A global hotkey summons a lightweight popup where you find a prompt, answer its questions, and have the finished prompt copied to your clipboard, in a few seconds, without touching the mouse. The main app is the home base for managing and authoring the library, and the launcher is how the library gets used all day. Design every phase with the launcher in mind. See "Quick launcher" below.
 - Plain files: every prompt is a Markdown file with YAML frontmatter in a user-chosen folder. Portable, hand-editable, Git/Dropbox friendly.
-- Authoring that doesn't require memorizing syntax: chips, completion, hover help, lint with quick fixes, "make field from selection".
+- **A minimal but credible editor.** Users must be able to create and change their own prompts: a good Markdown editor, field editing, validation feedback (lint diagnostics), and sensible creation defaults. Sophisticated authoring conveniences are deliberately deferred (see "Deferred editor polish").
+- **Ship it.** Packaging, install/upgrade testing, and a first launch that is understandable without a manual are goals in their own right, not afterthoughts.
 - Free and local. No accounts, no network calls, no telemetry.
 
 **Non-goals (v1). Do not build these without asking.**
@@ -19,6 +20,7 @@ The product name is Promptweaver (domain: promptweaver.app). Keep it in as few p
 - Includes/partials (`{{> shared/snippet}}`), loops, filters, or arbitrary expressions in templates. The `{{>` syntax is reserved so includes can be added later without breaking existing files. Until then it's a lint error.
 - Sync, accounts, sharing, billing.
 - Auto-pasting into the previously focused app (needs OS accessibility permissions). v1 copies to the clipboard only.
+- Advanced editor polish: field chips, elaborate autocomplete, selection-to-field conversion, and similar conveniences. See "Deferred editor polish". Don't let these become an endless pre-release project.
 
 ## Tech stack
 
@@ -26,7 +28,7 @@ The product name is Promptweaver (domain: promptweaver.app). Keep it in as few p
 - Electron, using electron-vite (the Vite integration for Electron) so the main, preload, and renderer builds all run on Vite
 - Zustand for state, Zod for validating frontmatter
 - `yaml` library (Document API) for frontmatter. Do NOT use gray-matter's stringify: it destroys comments and key order. Split frontmatter from the body ourselves.
-- CodeMirror 6 for the prompt editor (later phase)
+- CodeMirror 6 for the prompt editor (Phase 5, minimal Markdown editor first)
 - chokidar for watching the library folder (later phase)
 - Vitest for tests, with jsdom and Testing Library for React component tests, and Playwright (Electron) for end-to-end tests
 - npm (with npm workspaces). Do not use pnpm or yarn.
@@ -186,11 +188,16 @@ Lint and render must share the same parser so that what the editor flags matches
 
 ## Product behavior decisions already made
 
-- **Chips by default, with a toggle to show raw braces.** `{{language}}` renders in the editor as a colored pill by field type. Clicking opens a popover to edit that field.
-- **Fields panel** (sidebar) is the friendly alternative to editing YAML. Drag to reorder (this sets form order). Frontmatter is folded by default with a "Source" toggle.
-- **Make field from selection** is the signature authoring feature.
-- Autocomplete after `{{` (existing fields + "New field..."), after `{{if` (fields, then operators valid for that field type, then that field's options). Hover help on placeholders and keywords. Lint squiggles with quick fixes.
+- **v1 editor (minimal):** CodeMirror 6 as a plain Markdown editor with syntax highlighting for `{{...}}` tags, lint squiggles from `lint()` (messages shown inline and in a problems list), a basic fields panel for adding, editing, removing, and reordering fields (backed by the `edits.*` API, so YAML comments and key order survive), new-prompt creation with a sensible template (title, one example field), atomic saves, and the on-disk conflict choice. Raw frontmatter stays editable.
 - Library folder is user-chosen and stored in app settings. Prompts are `*.md` files, subfolders allowed (they act as categories).
+
+### Deferred editor polish (post-v1: do not build until the v1 workflow is solid and released)
+
+- **Chips by default, with a toggle to show raw braces.** `{{language}}` renders in the editor as a colored pill by field type. Clicking opens a popover to edit that field.
+- Drag-to-reorder in the fields panel, and frontmatter folded by default with a "Source" toggle.
+- **Make field from selection** (the `edits.makeField` function in `prompt-lang` may exist already; the UI for it waits).
+- Autocomplete after `{{` (existing fields + "New field..."), after `{{if` (fields, then operators valid for that field type, then that field's options). Hover help on placeholders and keywords. Lint quick-fix UI.
+- Wrap-in-condition.
 
 ## Search
 
@@ -260,7 +267,7 @@ A Spotlight/Raycast-style popup, summoned by a global hotkey from any app. This 
 Most prompts start life as something that worked once, so capturing one must take seconds. In the launcher, the "New prompt from clipboard" action (also in the tray menu and main window, and reachable by typing "new") does this:
 
 1. Creates a new `.md` file in the library whose body is the clipboard text, with a title derived from the first line (truncated) or "Untitled prompt", no fields, and a unique slugified file name.
-2. Hides the launcher, brings the main window forward, and opens the new prompt in the editor, ready to turn pieces into fields with "Make field from selection". Until the editor exists (Phase 5), open it selected in the library view instead.
+2. Hides the launcher, brings the main window forward, and opens the new prompt in the editor, ready to turn pieces into fields with the fields panel. Until the editor exists (Phase 5), open it selected in the library view instead.
 3. If the clipboard is empty or not text, show a short message instead of creating a file.
 
 ### Window behavior
@@ -294,6 +301,7 @@ Most prompts start life as something that worked once, so capturing one must tak
 - Prefer small pure functions and discriminated unions. Parse, don't validate: turn raw input into typed values at the boundary.
 - `prompt-lang` has no runtime dependencies other than `yaml` and `zod`.
 - Tests live next to the code (`*.test.ts`). Every parser case, lint rule, edit, and render behavior gets a test. Include round-trip tests for edits (apply the edit, re-parse, assert the structure and that comments and key order in the frontmatter survive).
+- **Prefer unit or component tests whenever possible; e2e (Playwright) tests are a last resort.** Pull logic into pure functions or services with fakes, and test UI with Testing Library and a mocked `window.api`. Add an e2e test only for what can't be covered that way (real windows, the preload bridge, the CSP). E2E tests open real windows and take focus, so don't run them while developing; run `npm test`, typecheck, and lint, and leave `npm run test:e2e` for the owner to run.
 - Format with Prettier, lint with ESLint. Keep both passing.
 - **Never lose user data.** Write files atomically (write to a temp file in the same folder, then rename). If a file changes on disk while it's open in the editor, don't overwrite it silently: show a conflict choice. Never delete a user's file without confirmation.
 - UI: follow the system light/dark setting, be keyboard-first, show visible focus states, and use proper ARIA patterns (combobox/listbox for the launcher's search and results, labeled form controls).
@@ -327,9 +335,10 @@ npx electron apps/desktop --user-data-dir=/tmp/promptweaver-try --remote-debuggi
 1. **Phase 1: scaffold + `prompt-lang`.** Monorepo, electron-vite app that opens a window, and the full `prompt-lang` package with tests. No real UI yet.
 2. **Phase 2: library.** Main-process file access, library folder picker, file watcher, the `SearchIndex` interface with its MiniSearch implementation and contract tests, library browser UI, starter prompts.
 3. **Phase 3: fill-in form + output.** A shared, keyboard-friendly `FillForm` component driven by `formFor`, with live preview, copy to clipboard, and remembered last-used values. It must work in both the main window and the launcher.
-4. **Phase 4: quick launcher (headline feature).** Global shortcut, pre-created hidden frameless window, alias-first search, form, copy, hide, new-prompt-from-clipboard action, built-in `{{clipboard}}` captured at summon time, tray/menu-bar presence, configurable hotkey. Built right after the form so the core loop (hotkey, find, fill, copy) works end to end early. Hit the performance targets in the Quick launcher section, and add a dev-only measurement of hotkey-to-first-paint so the targets are verified, not guessed.
-5. **Phase 5: editor.** CodeMirror 6 with chips, completion, hover, lint, fields panel, make-field-from-selection, wrap-in-condition.
-6. **Phase 6: polish.** Starter pack of 15-20 good prompts, import/export, packaging, README.
+4. **Phase 4: quick launcher (headline feature).** Global shortcut, pre-created hidden frameless window, alias-first search, form, copy, hide, new-prompt-from-clipboard action, built-in `{{clipboard}}` captured at summon time, tray/menu-bar presence, configurable hotkey. Built right after the form so the core loop (hotkey, find, fill, copy) works end to end early. **This is the critical path: finish it before anything else.** It must open reliably, search instantly, let users select and fill a prompt without the mouse, copy the result, and get out of the way. Hit the performance targets in the Quick launcher section, and add a dev-only measurement of hotkey-to-first-paint so the targets are verified, not guessed. Also measure the experience in keystrokes and seconds to complete common tasks (for example `cr`, Enter, answer, Cmd+Enter), and record the numbers. Exit criteria: also produce an unsigned packaged build and verify the hotkey, tray, clipboard capture, and show-over-full-screen behavior in it, since these often differ from `npm run dev`. Signing and notarization wait for Phase 6.
+5. **Phase 5: minimal editor.** CodeMirror 6 as a Markdown editor with `{{...}}` highlighting, lint feedback, a basic fields panel (add, edit, remove, reorder via buttons), and sensible new-prompt defaults. Stop there. Everything in "Deferred editor polish" waits.
+6. **Phase 6: package and release.** Packaging and signing/notarization for the platforms we claim to support (see the platform open question), plus testing of: install, upgrade (settings and library survive), global hotkey and launcher behavior, clipboard behavior, file changes on disk while running, and launch at login. A first-run experience that is understandable without a manual (default library with the starter pack, a short hotkey hint). README, import/export if time allows.
+7. **Phase 7: editor polish (post-release).** Pick items from "Deferred editor polish" based on real use.
 
 Work one phase at a time. Stop at the end of each phase and summarize what exists, what's untested, and any decisions that need my input.
 
@@ -344,10 +353,15 @@ Work one phase at a time. Stop at the end of each phase and summarize what exist
 
 ## Open questions (ask me before deciding)
 
+**Blocker: answer before Phase 4 ends.**
+- Platform priority for v1 (see below). It shapes hotkey, vibrancy, and full-screen handling in Phase 4 and what Phase 6 packages and tests.
+
+**Other**
+
 - Toggle rendering when used as a placeholder (`yes`/`no` is the current guess).
 - Whether to add field groups ("Advanced options") to the format.
 - Default global hotkey (must avoid common conflicts).
-- Platform priority for v1: macOS first, or macOS/Windows/Linux together? (Global shortcuts, vibrancy, and show-over-full-screen behave differently per platform. Linux/Wayland global shortcuts are unreliable.)
+- Platform priority for v1: macOS first, or macOS/Windows/Linux together? (Only platforms we actually test in Phase 6 may be claimed as supported.) (Global shortcuts, vibrancy, and show-over-full-screen behave differently per platform. Linux/Wayland global shortcuts are unreliable.)
 - Whether the launcher should auto-paste into the previous app in a later version (needs accessibility permission on macOS).
 - Built-in `{{date}}` and `{{time}}` formats (ISO and 24-hour are assumed) and whether users will need custom formats or more built-ins (for example `{{weekday}}`).
 - Open-source license for the repo (don't add a LICENSE file until decided).
