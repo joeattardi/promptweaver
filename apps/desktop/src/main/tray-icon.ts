@@ -95,7 +95,7 @@ function chunk(type: string, data: Buffer): Buffer {
   return out
 }
 
-function encodePng(width: number, height: number, rgba: Buffer): Buffer {
+export function encodePng(width: number, height: number, rgba: Buffer): Buffer {
   const header = Buffer.alloc(13)
   header.writeUInt32BE(width, 0)
   header.writeUInt32BE(height, 4)
