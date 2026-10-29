@@ -11,7 +11,8 @@
     "start": "electron-vite preview",
     "typecheck": "tsc -p tsconfig.node.json && tsc -p tsconfig.web.json && tsc -p tsconfig.e2e.json",
     "postinstall": "install-electron",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "package:unsigned": "electron-vite build && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --dir --config electron-builder.yml -c.mac.identity=null"
   },
   "dependencies": {
     "chokidar": "^6.0.0",
@@ -27,6 +28,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "electron": "^45.1.0",
+    "electron-builder": "^26.18.0",
     "electron-vite": "^6.0.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

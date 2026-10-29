@@ -62,7 +62,19 @@ npm run build                  # production bundle in apps/desktop/out
 npm run start -w apps/desktop  # run the production bundle locally
 ```
 
-`npm run build` compiles the main process, preload script, and both renderer windows (main window and quick launcher) into `apps/desktop/out`. It doesn't produce an installer yet; packaging is planned for a later phase.
+`npm run build` compiles the main process, preload script, and both renderer windows (main window and quick launcher) into `apps/desktop/out`.
+
+For an unsigned app you can run (macOS: `apps/desktop/dist/mac-arm64/Promptweaver.app`):
+
+```sh
+npm run package:unsigned -w apps/desktop
+```
+
+Signing, notarization and installers are Phase 6.
+
+## The quick launcher
+
+Press **Control+Option+Space** (change it in Settings) from any app. Type a prompt's alias or name, Enter, answer the questions, Cmd/Ctrl+Enter to copy. Esc steps back or closes. Cmd/Ctrl+N saves the clipboard as a new prompt, Cmd/Ctrl+D stars the highlighted prompt, Cmd/Ctrl+E opens it in the main window, Cmd/Ctrl+P previews. Measurements: [docs/launcher-performance.md](docs/launcher-performance.md). For timing lines while running, use `npm run dev` or set `PROMPTWEAVER_PERF=1`.
 
 ## Testing and checks
 

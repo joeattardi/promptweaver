@@ -5,8 +5,9 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   main: {
-    // prompt-lang ships TypeScript source, so bundle it instead of requiring it at runtime.
-    build: { externalizeDeps: { exclude: ['prompt-lang'] } }
+    // Bundle every dependency (prompt-lang ships TypeScript source, and a packaged app has no
+    // node_modules to require from). Electron and Node's own modules stay external.
+    build: { externalizeDeps: false }
   },
   preload: {
     // Sandboxed preloads can only require 'electron', so bundle everything else.
