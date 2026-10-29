@@ -2,8 +2,13 @@
 // Only macOS has been tried so far (see "Open questions" in CLAUDE.md); the
 // other branches are the documented Electron behavior, not yet tested.
 
-import { app, type BrowserWindow, type BrowserWindowConstructorOptions } from 'electron'
-import { LAUNCHER_INITIAL_HEIGHT, LAUNCHER_PAD, LAUNCHER_WINDOW_WIDTH } from './launcher-geometry'
+import {
+  app,
+  nativeTheme,
+  type BrowserWindow,
+  type BrowserWindowConstructorOptions
+} from 'electron'
+import { LAUNCHER_INITIAL_HEIGHT, LAUNCHER_WIDTH } from './launcher-geometry'
 
 export const isMac = process.platform === 'darwin'
 export const isWindows = process.platform === 'win32'
@@ -42,8 +47,8 @@ export function isLaunchAtLoginEnabled(): boolean {
 export function launcherWindowOptions(): BrowserWindowConstructorOptions {
   return {
     title: app.getName(),
-    width: LAUNCHER_WINDOW_WIDTH,
-    height: LAUNCHER_INITIAL_HEIGHT + 2 * LAUNCHER_PAD,
+    width: LAUNCHER_WIDTH,
+    height: LAUNCHER_INITIAL_HEIGHT,
     show: false,
     frame: false,
     resizable: false,
@@ -53,17 +58,25 @@ export function launcherWindowOptions(): BrowserWindowConstructorOptions {
     fullscreenable: false,
     skipTaskbar: true,
     alwaysOnTop: true,
-    // The window is clear and larger than the panel: the page draws the panel, its rounded
-    // corners and its shadow, and animates them, so the system must not add its own.
-    transparent: true,
-    backgroundColor: '#00000000',
-    hasShadow: false,
+    hasShadow: true,
+    // The window is the page's solid background, so it must match the page's light or dark surface.
+    backgroundColor: launcherBackground(),
+    // The system rounds the corners of a frameless window (macOS, Windows 11); the page doesn't.
+    roundedCorners: true,
     ...(isMac ? { type: 'panel' as const } : {})
   }
 }
 
+/** The launcher surface's color (see `.launcher-surface` in styles.css), by the system's light or dark setting. */
+function launcherBackground(): string {
+  return nativeTheme.shouldUseDarkColors ? '#18181b' : '#ffffff'
+}
+
 /** One-time setup after the launcher window exists. */
 export function configureLauncherWindow(win: BrowserWindow): void {
+  nativeTheme.on('updated', () => {
+    if (!win.isDestroyed()) win.setBackgroundColor(launcherBackground())
+  })
   // Above everything, including full-screen apps' windows.
   win.setAlwaysOnTop(true, 'screen-saver')
   if (isMac) {

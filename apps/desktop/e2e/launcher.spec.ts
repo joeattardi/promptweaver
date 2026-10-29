@@ -1,7 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Page } from '@playwright/test'
-import { LAUNCHER_PAD, LAUNCHER_WINDOW_WIDTH, type Launched } from './app'
+import type { Launched } from './app'
 import { expect, test } from './fixtures'
 
 const search = (page: Page) => page.getByRole('combobox', { name: 'Search prompts' })
@@ -35,11 +35,10 @@ test.describe('summoning', () => {
       const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
       return display.workArea
     })
-    // The window is the panel plus a clear margin; the panel is what must be centered and on screen.
-    expect(bounds.width).toBe(LAUNCHER_WINDOW_WIDTH)
+    expect(bounds.width).toBe(640)
     expect(bounds.x + bounds.width / 2).toBeCloseTo(area.x + area.width / 2, -1)
-    expect(bounds.y + LAUNCHER_PAD).toBeLessThan(area.y + area.height / 2)
-    expect(bounds.y + bounds.height - LAUNCHER_PAD).toBeLessThanOrEqual(area.y + area.height)
+    expect(bounds.y).toBeLessThan(area.y + area.height / 2)
+    expect(bounds.y + bounds.height).toBeLessThanOrEqual(area.y + area.height)
   })
 
   test('is the same window every time, not a new one', async ({ app }) => {
@@ -75,28 +74,25 @@ test.describe('summoning', () => {
     await summon(app)
     // Past the moment right after showing, when a focus change is just the window settling.
     await app.launcher.waitForTimeout(400)
-    await app.app.evaluate(({ BrowserWindow }, width: number) => {
+    await app.app.evaluate(({ BrowserWindow }) => {
       BrowserWindow.getAllWindows()
-        .find((w) => w.getBounds().width === width)
+        .find((w) => w.getBounds().width === 640)
         ?.emit('blur')
-    }, LAUNCHER_WINDOW_WIDTH)
+    })
     await expect.poll(() => app.launcherVisible()).toBe(false)
   })
 
   test('does not hide itself the instant it appears', async ({ app }) => {
     // All inside the app, so the timing is the app's and not the test's round trips.
-    const stillVisible = await app.app.evaluate(
-      async ({ app: electronApp, BrowserWindow }, width: number) => {
-        const win = BrowserWindow.getAllWindows().find((w) => w.getBounds().width === width)
-        if (!win) throw new Error('No launcher window')
-        electronApp.emit('promptweaver:press', 'Control+Alt+Space', { pressed: false })
-        while (!win.isVisible()) await new Promise((resolve) => setTimeout(resolve, 1))
-        win.emit('blur') // the window system settling right after showing
-        await new Promise((resolve) => setTimeout(resolve, 100))
-        return win.isVisible()
-      },
-      LAUNCHER_WINDOW_WIDTH
-    )
+    const stillVisible = await app.app.evaluate(async ({ app: electronApp, BrowserWindow }) => {
+      const win = BrowserWindow.getAllWindows().find((w) => w.getBounds().width === 640)
+      if (!win) throw new Error('No launcher window')
+      electronApp.emit('promptweaver:press', 'Control+Alt+Space', { pressed: false })
+      while (!win.isVisible()) await new Promise((resolve) => setTimeout(resolve, 1))
+      win.emit('blur') // the window system settling right after showing
+      await new Promise((resolve) => setTimeout(resolve, 100))
+      return win.isVisible()
+    })
     expect(stillVisible).toBe(true)
   })
 })
@@ -323,7 +319,7 @@ test.describe('the window fits its content', () => {
     await expect(form(app.launcher)).toBeVisible()
     await app.launcher.keyboard.press('ControlOrMeta+p')
     await app.launcher.waitForTimeout(200)
-    expect((await app.launcherBounds()).height).toBeLessThanOrEqual(640 + 2 * LAUNCHER_PAD)
+    expect((await app.launcherBounds()).height).toBeLessThanOrEqual(640)
   })
 })
 

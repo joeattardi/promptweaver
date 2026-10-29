@@ -5,9 +5,9 @@
 }
 
 /*
- * The quick launcher's window is clear and larger than the panel: the stage is the margin around
- * the panel, with room for its shadow and for the opening and closing motion (see motion.ts).
- * LAUNCHER_PAD in the main process's launcher-geometry.ts must match the stage's padding.
+ * The quick launcher's window is the page: no page background of its own, and a solid
+ * surface that fills the window. The system rounds the window's corners. The color
+ * must match launcherBackground() in the main process's platform module.
  */
 html[data-launcher],
 html[data-launcher] body {
@@ -15,29 +15,14 @@ html[data-launcher] body {
   overflow: hidden;
 }
 
-.launcher-stage {
-  padding: 28px;
-}
-
 .launcher-surface {
-  border-radius: 14px;
-  transform-origin: 50% 0;
   background-color: #ffffff;
-  /* A hairline edge, then shadows that stay inside the stage's margin. */
-  box-shadow:
-    0 0 0 1px rgb(0 0 0 / 0.08),
-    0 1px 2px rgb(0 0 0 / 0.1),
-    0 8px 22px -6px rgb(0 0 0 / 0.3),
-    0 12px 24px -14px rgb(0 0 0 / 0.28);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.1);
 }
 
 @media (prefers-color-scheme: dark) {
   .launcher-surface {
     background-color: #18181b;
-    box-shadow:
-      0 0 0 1px rgb(255 255 255 / 0.12),
-      0 1px 2px rgb(0 0 0 / 0.5),
-      0 8px 22px -6px rgb(0 0 0 / 0.7),
-      0 12px 24px -14px rgb(0 0 0 / 0.6);
+    box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.12);
   }
 }

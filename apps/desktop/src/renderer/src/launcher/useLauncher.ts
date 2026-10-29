@@ -30,8 +30,6 @@ export function useLauncher() {
   const [copied, setCopied] = useState<{ title: string } | null>(null)
   // Bumped to pull keyboard focus back to the search box.
   const [focusTick, setFocusTick] = useState(0)
-  // How many times the launcher has been summoned; the opening animation runs for each.
-  const [summonCount, setSummonCount] = useState(0)
 
   // A slow answer must not replace a newer one, and Enter must not act on a list that is about to change.
   const searchSeq = useRef(0)
@@ -66,7 +64,6 @@ export function useLauncher() {
         setClipboard(summon.clipboard)
         setSuggestions(summon.suggestions)
         setFocusTick((n) => n + 1)
-        setSummonCount((n) => n + 1)
       }),
       api.onLauncherSuggestions(setSuggestions),
       api.onLauncherHidden(() => {
@@ -189,7 +186,6 @@ export function useLauncher() {
     step,
     copied,
     focusTick,
-    summonCount,
     choose,
     chooseActive,
     toggleFavorite,

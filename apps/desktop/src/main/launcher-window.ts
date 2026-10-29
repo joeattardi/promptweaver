@@ -3,7 +3,6 @@ import type { LauncherSuggestions, LauncherSummon } from '../shared/ipc'
 import {
   clampLauncherHeight,
   LAUNCHER_INITIAL_HEIGHT,
-  LAUNCHER_PAD,
   launcherBounds,
   type Rect
 } from './launcher-geometry'
@@ -25,12 +24,6 @@ export interface LauncherDeps {
  */
 const BLUR_GRACE_MS = 200
 
-/**
- * How long the page gets to play its closing animation before the window is hidden. A little
- * longer than the animation itself (see motion.ts in the launcher's page), so it has finished.
- */
-const CLOSE_MS = 150
-
 /** How long the hotkey waits for the clipboard before showing the launcher without it. */
 const CLIPBOARD_TIMEOUT_MS = 150
 
@@ -43,7 +36,6 @@ export class LauncherController {
   private height = LAUNCHER_INITIAL_HEIGHT
   private shownAt = 0
   private summoning = false
-  private closeTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor(
     private readonly win: BrowserWindow,
@@ -68,18 +60,16 @@ export class LauncherController {
 
   /** The hotkey: show the launcher, or hide it if it is already up. */
   toggle(): void {
-    // Pressed again while it is closing: bring it back rather than finish going away.
-    if (this.isVisible() && this.closeTimer === null) this.hide()
+    if (this.isVisible()) this.hide()
     else void this.summon()
   }
 
   /** Shows the launcher, centered on the display the cursor is on. */
   async summon(): Promise<void> {
     // A second press while the first is still on its way up would show it twice.
-    if (this.summoning || (this.isVisible() && this.closeTimer === null)) return
+    if (this.summoning || this.isVisible()) return
     this.summoning = true
     try {
-      this.cancelClose()
       const started = Date.now()
       // The read starts now, before the window takes focus, so it is what the user had just copied.
       const clipboard = await this.readClipboard()
@@ -117,30 +107,19 @@ export class LauncherController {
     return Promise.race([this.deps.readClipboard().catch(() => ''), timeout])
   }
 
-  /** Closes the launcher: the page plays its closing animation, then the window is hidden. */
   hide(): void {
-    if (!this.isVisible() || this.closeTimer !== null) return
-    this.win.webContents.send('launcher:closing', {})
-    this.closeTimer = setTimeout(() => {
-      this.closeTimer = null
-      hideLauncherWindow(this.win)
-    }, CLOSE_MS)
+    if (!this.isVisible()) return
+    hideLauncherWindow(this.win)
   }
 
-  private cancelClose(): void {
-    if (this.closeTimer !== null) clearTimeout(this.closeTimer)
-    this.closeTimer = null
-  }
-
-  /** Fits the window to the panel's height (the page measures it), keeping its top edge where it is. */
+  /** Fits the window to the page's content, keeping its top edge where it is. */
   resize(requested: number): void {
     const area = workAreaAtCursor(this.win.getBounds())
     const height = clampLauncherHeight(requested, area)
     this.height = height
     const bounds = this.win.getBounds()
-    const windowHeight = height + 2 * LAUNCHER_PAD
-    if (bounds.height === windowHeight) return
-    this.win.setBounds({ ...bounds, height: windowHeight })
+    if (bounds.height === height) return
+    this.win.setBounds({ ...bounds, height })
   }
 
   /** Tells the page the library or the favorites changed while it is open. */

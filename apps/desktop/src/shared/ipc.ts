@@ -134,7 +134,7 @@ export interface IpcContract {
   'settings:set-launch-at-login': { args: [enabled: boolean]; result: SettingsView }
   /** Hides the launcher without doing anything else. */
   'launcher:hide': { args: []; result: undefined }
-  /** The height the launcher's panel needs, in CSS pixels. Main fits the window to it (plus the margin around the panel). */
+  /** The height the launcher's content needs, in CSS pixels. Main fits the window to it. */
   'launcher:resize': { args: [height: number]; result: undefined }
   /** Hides the launcher and shows the main window with this prompt selected. */
   'launcher:open-in-main': { args: [id: string]; result: undefined }
@@ -158,8 +158,6 @@ export interface IpcEventContract {
   'launcher:suggestions': LauncherSuggestions
   /** The launcher window was just ordered to the front (sent only while measuring performance). */
   'launcher:shown': Record<string, never>
-  /** The launcher is about to be hidden: play the closing animation (the window hides shortly after). */
-  'launcher:closing': Record<string, never>
   /** The launcher was hidden, by any route. Reset it so the next show starts clean. */
   'launcher:hidden': Record<string, never>
   'favorites:changed': { ids: string[] }
@@ -204,7 +202,6 @@ export interface RendererApi {
   onLauncherSummon(listener: (payload: LauncherSummon) => void): () => void
   onLauncherSuggestions(listener: (payload: LauncherSuggestions) => void): () => void
   onLauncherShown(listener: () => void): () => void
-  onLauncherClosing(listener: () => void): () => void
   onLauncherHidden(listener: () => void): () => void
   onFavoritesChanged(listener: (payload: IpcEventPayload<'favorites:changed'>) => void): () => void
   onSettingsChanged(listener: (payload: SettingsView) => void): () => void

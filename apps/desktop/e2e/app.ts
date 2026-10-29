@@ -36,11 +36,6 @@ export interface LaunchOptions {
   takenShortcuts?: string[]
 }
 
-/** The launcher panel's width (640) plus the clear margin around it (28 each side); how its window is told apart. */
-export const LAUNCHER_WINDOW_WIDTH = 696
-/** The clear margin around the launcher's panel inside its window. */
-export const LAUNCHER_PAD = 28
-
 /** The shortcut that summons the launcher on a fresh install. */
 export const DEFAULT_HOTKEY = 'Control+Alt+Space'
 
@@ -120,11 +115,11 @@ export async function launch(sandbox: Sandbox, options: LaunchOptions = {}): Pro
       }, text)
   }
   const launcherWindow = (): Promise<{ visible: boolean; bounds: Electron.Rectangle }> =>
-    app.evaluate(({ BrowserWindow }, width: number) => {
-      const win = BrowserWindow.getAllWindows().find((w) => w.getBounds().width === width)
+    app.evaluate(({ BrowserWindow }) => {
+      const win = BrowserWindow.getAllWindows().find((w) => w.getBounds().width === 640)
       if (!win) throw new Error('No launcher window')
       return { visible: win.isVisible(), bounds: win.getBounds() }
-    }, LAUNCHER_WINDOW_WIDTH)
+    })
   return {
     app,
     main,
