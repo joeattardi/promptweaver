@@ -81,8 +81,6 @@ export async function launch(sandbox: Sandbox, options: LaunchOptions = {}): Pro
   // In-memory shortcuts that a test can press, and timing lines on stdout.
   env['PROMPTWEAVER_TEST_HOOKS'] = '1'
   env['PROMPTWEAVER_PERF'] = '1'
-  // Windows stay invisible and never take focus; set SHOW_E2E_WINDOWS=1 to watch a run.
-  if (process.env['SHOW_E2E_WINDOWS'] !== '1') env['PROMPTWEAVER_TEST_HIDDEN'] = '1'
   env['PROMPTWEAVER_TEST_TAKEN_SHORTCUTS'] = (options.takenShortcuts ?? []).join(',')
   const app = await electron.launch({
     args: [appDir, `--user-data-dir=${sandbox.dataDir}`],

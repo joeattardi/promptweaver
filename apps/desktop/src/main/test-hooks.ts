@@ -1,4 +1,3 @@
-import type { BrowserWindow } from 'electron'
 import type { ShortcutApi } from './hotkey'
 
 /**
@@ -29,18 +28,4 @@ export function createFakeShortcuts(taken: readonly string[]): {
       return callback !== undefined
     }
   }
-}
-
-/**
- * For end-to-end runs on a real desktop: keeps a window from flashing on screen or taking focus.
- * It still counts as shown (`isVisible()` is true, pages render and take input), but it is fully
- * transparent, clicks go through it, and showing or focusing it never activates the app.
- * Set PROMPTWEAVER_TEST_HIDDEN=1 (with PROMPTWEAVER_TEST_HOOKS=1); the tests' launcher does so
- * unless SHOW_E2E_WINDOWS=1 is set to watch them.
- */
-export function makeUnobtrusive(win: BrowserWindow): void {
-  win.setOpacity(0)
-  win.setIgnoreMouseEvents(true)
-  win.show = () => win.showInactive()
-  win.focus = () => undefined
 }
