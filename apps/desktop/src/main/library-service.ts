@@ -25,6 +25,7 @@ const SEARCH_LIMIT = 50
  */
 export class LibraryService {
   private openError: string | null = null
+  private loaded = false
   private revision = 0
   private started: Promise<void> = Promise.resolve()
   private readonly listeners = new Set<() => void>()
@@ -35,7 +36,10 @@ export class LibraryService {
 
   /** Opens the saved library, if there is one. Never rejects: a problem becomes an `error` state. */
   start(): Promise<void> {
-    this.started = this.openSaved()
+    this.loaded = false
+    this.started = this.openSaved().finally(() => {
+      this.loaded = true
+    })
     return this.started
   }
 
@@ -54,20 +58,33 @@ export class LibraryService {
   }
 
   state(): LibraryState {
-    const { library, settings, defaultPath } = this.deps
+    const { library, defaultPath } = this.deps
     const base = { revision: this.revision, defaultPath }
-    const path = settings.get().libraryPath
-    if (path === null) return { status: 'unconfigured', ...base }
-    const message = this.openError ?? library.error
-    if (message !== null || library.path !== path) {
-      return {
-        status: 'error',
-        path,
-        message: message ?? 'The library folder could not be opened.',
-        ...base
-      }
+    const health = this.health()
+    if (health.status === 'ready') {
+      return { status: 'ready', path: health.path, ...library.snapshot(), ...base }
     }
-    return { status: 'ready', path, ...library.snapshot(), ...base }
+    return { ...health, ...base }
+  }
+
+  /** How the library is doing, without building the prompt list. 'loading' until the saved folder has been read. */
+  status(): 'loading' | 'unconfigured' | 'error' | 'ready' {
+    return this.loaded ? this.health().status : 'loading'
+  }
+
+  /** Every prompt, in library order. Empty unless the library is ready. */
+  prompts(): PromptSummary[] {
+    return this.health().status === 'ready' ? this.deps.library.snapshot().prompts : []
+  }
+
+  /** The folder in use, or null if there is none. */
+  get path(): string | null {
+    return this.health().status === 'ready' ? this.deps.library.path : null
+  }
+
+  /** Re-reads these files now, so a file the app just wrote is in the library before anyone asks. */
+  refresh(paths: string[]): Promise<void> {
+    return this.deps.library.refresh(paths)
   }
 
   detail(id: string): PromptDetail | null {
@@ -116,6 +133,24 @@ export class LibraryService {
   }
 
   // ---------------------------------------------------------------------------
+
+  private health():
+    | { status: 'unconfigured' }
+    | { status: 'error'; path: string; message: string }
+    | { status: 'ready'; path: string } {
+    const { library, settings } = this.deps
+    const path = settings.get().libraryPath
+    if (path === null) return { status: 'unconfigured' }
+    const message = this.openError ?? library.error
+    if (message !== null || library.path !== path) {
+      return {
+        status: 'error',
+        path,
+        message: message ?? 'The library folder could not be opened.'
+      }
+    }
+    return { status: 'ready', path }
+  }
 
   private async openSaved(): Promise<void> {
     const path = this.deps.settings.get().libraryPath

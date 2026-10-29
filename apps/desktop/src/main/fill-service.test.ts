@@ -23,16 +23,19 @@ function setup(clipboardText = 'on the clipboard') {
   const remember = vi.fn(async (id: string, values: Values) => {
     remembered.set(id, values)
   })
+  const markUsed = vi.fn<(id: string) => Promise<void>>(async () => undefined)
+  const onCopied = vi.fn()
   const service = new FillService({
     prompts: { entry: (id) => entries.get(id) ?? null },
-    state: { lastValues: (id) => remembered.get(id) ?? {}, remember },
+    state: { lastValues: (id) => remembered.get(id) ?? {}, remember, markUsed },
+    onCopied,
     clipboard: {
       readText: async () => clipboardText,
       writeText: async (text) => void written.push(text)
     },
     now: () => new Date(2026, 0, 5, 9, 7)
   })
-  return { service, written, remember, remembered }
+  return { service, written, remember, remembered, markUsed, onCopied }
 }
 
 describe('FillService.open', () => {
@@ -88,6 +91,30 @@ describe('FillService.copy', () => {
     const { service, remembered } = setup()
     await service.copy('review', { language: 'TypeScript', strict: false, code: 'secret' }, '')
     expect(remembered.get('review')).toEqual({ language: 'TypeScript', strict: false })
+  })
+
+  it('marks the prompt as recently used and tells the app it was copied', async () => {
+    const { service, markUsed, onCopied } = setup()
+    await service.copy('review', { code: 'x' }, '')
+    expect(markUsed).toHaveBeenCalledWith('review')
+    expect(onCopied).toHaveBeenCalledWith('review')
+  })
+
+  it('does not count a copy that did not happen as a use', async () => {
+    const { service, markUsed, onCopied } = setup()
+    await service.copy('review', { code: '' }, '')
+    await service.copy('nope', {}, '')
+    expect(markUsed).not.toHaveBeenCalled()
+    expect(onCopied).not.toHaveBeenCalled()
+  })
+
+  it('still records the use when the answers could not be saved', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+    const { service, remember, markUsed } = setup()
+    remember.mockRejectedValueOnce(new Error('disk full'))
+    await service.copy('review', { code: 'x' }, '')
+    expect(markUsed).toHaveBeenCalledWith('review')
+    vi.restoreAllMocks()
   })
 
   it('still reports success if the answers could not be saved', async () => {

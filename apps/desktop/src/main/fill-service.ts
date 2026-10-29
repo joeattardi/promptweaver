@@ -14,7 +14,10 @@ export interface FillServiceDeps {
   state: {
     lastValues(id: string): Values
     remember(id: string, values: Values): Promise<void>
+    markUsed(id: string): Promise<void>
   }
+  /** Called after a prompt is copied, so the launcher's recents are current. */
+  onCopied?: (id: string) => void
   clipboard: { readText(): Promise<string>; writeText(text: string): Promise<void> }
   now: () => Date
 }
@@ -41,12 +44,17 @@ export class FillService {
 
     const text = render(entry.parsed, values, { now: this.deps.now(), clipboard })
     await this.deps.clipboard.writeText(text)
-    try {
-      await this.deps.state.remember(id, rememberable(formFor(entry.parsed).fields, values))
-    } catch (error) {
-      // The prompt is already copied; failing to remember the answers isn't worth an error.
-      console.warn(`Couldn't save the last-used values for ${id}:`, error)
-    }
+    // The prompt is already copied; failing to remember anything isn't worth an error.
+    const { state } = this.deps
+    await Promise.all(
+      [
+        state.remember(id, rememberable(formFor(entry.parsed).fields, values)),
+        state.markUsed(id)
+      ].map((write) =>
+        write.catch((error: unknown) => console.warn(`Couldn't save state for ${id}:`, error))
+      )
+    )
+    this.deps.onCopied?.(id)
     return { status: 'copied' }
   }
 }

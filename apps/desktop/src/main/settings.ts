@@ -1,9 +1,13 @@
 import { z } from 'zod'
+import { DEFAULT_LAUNCHER_HOTKEY } from '../shared/accelerator'
 import { JsonStore } from './json-store'
 
 // Loose, so keys written by a newer version survive a save by an older one.
 const SettingsSchema = z.looseObject({
-  libraryPath: z.string().min(1).nullable().default(null)
+  libraryPath: z.string().min(1).nullable().default(null),
+  /** Electron accelerator that summons the quick launcher. */
+  launcherHotkey: z.string().min(1).default(DEFAULT_LAUNCHER_HOTKEY),
+  launchAtLogin: z.boolean().default(false)
 })
 
 export type Settings = z.infer<typeof SettingsSchema>

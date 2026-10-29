@@ -2,7 +2,7 @@ import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { MAX_REMEMBERED_PROMPTS, StateStore } from './state'
+import { MAX_RECENTS, MAX_REMEMBERED_PROMPTS, StateStore } from './state'
 
 let dir: string
 let file: string
@@ -46,12 +46,14 @@ describe('StateStore', () => {
   })
 
   it('keeps keys it does not know about', async () => {
-    await writeFile(file, JSON.stringify({ recents: ['a'], lastValues: {} }))
+    await writeFile(file, JSON.stringify({ somethingNew: ['a'], lastValues: {} }))
     const state = await StateStore.open(file)
     await state.remember('review', { language: 'Go' })
     expect(JSON.parse(await readFile(file, 'utf8'))).toEqual({
-      recents: ['a'],
-      lastValues: { review: { language: 'Go' } }
+      somethingNew: ['a'],
+      lastValues: { review: { language: 'Go' } },
+      favorites: [],
+      recents: []
     })
   })
 
@@ -92,5 +94,50 @@ describe('StateStore', () => {
     const state = await StateStore.open(file)
     expect(state.lastValues('review')).toEqual({})
     expect((await readdir(dir)).some((f) => f.startsWith('state.json.invalid-'))).toBe(true)
+  })
+
+  describe('favorites', () => {
+    it('stars and unstars a prompt, keeping the order they were starred in', async () => {
+      const state = await StateStore.open(file)
+      expect(await state.toggleFavorite('b')).toBe(true)
+      expect(await state.toggleFavorite('a')).toBe(true)
+      expect(state.favorites()).toEqual(['b', 'a'])
+      expect(state.isFavorite('a')).toBe(true)
+      expect(await state.toggleFavorite('b')).toBe(false)
+      expect(state.favorites()).toEqual(['a'])
+      expect((await StateStore.open(file)).favorites()).toEqual(['a'])
+    })
+  })
+
+  describe('recents', () => {
+    it('puts the prompt just used first and lists each prompt once', async () => {
+      const state = await StateStore.open(file)
+      await state.markUsed('a')
+      await state.markUsed('b')
+      await state.markUsed('a')
+      expect(state.recents()).toEqual(['a', 'b'])
+      expect((await StateStore.open(file)).recents()).toEqual(['a', 'b'])
+    })
+
+    it('forgets the least recently used past the limit', async () => {
+      const state = await StateStore.open(file)
+      for (let i = 0; i < MAX_RECENTS + 3; i++) await state.markUsed(`p${i}`)
+      expect(state.recents()).toHaveLength(MAX_RECENTS)
+      expect(state.recents()[0]).toBe(`p${MAX_RECENTS + 2}`)
+      expect(state.recents()).not.toContain('p0')
+    })
+
+    it('does not lose a change made while another is being saved', async () => {
+      const state = await StateStore.open(file)
+      await Promise.all([
+        state.markUsed('a'),
+        state.toggleFavorite('b'),
+        state.remember('c', { x: '1' })
+      ])
+      const reopened = await StateStore.open(file)
+      expect(reopened.recents()).toEqual(['a'])
+      expect(reopened.favorites()).toEqual(['b'])
+      expect(reopened.lastValues('c')).toEqual({ x: '1' })
+    })
   })
 })

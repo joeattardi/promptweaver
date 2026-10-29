@@ -1,6 +1,6 @@
 import { vi } from 'vitest'
 import { formFor, parse, type FormModel } from 'prompt-lang'
-import type { PromptDetail, RendererApi } from '../../../shared/ipc'
+import type { PromptDetail, RendererApi, SettingsView } from '../../../shared/ipc'
 
 export const REVIEW = `---
 title: Code Review
@@ -53,6 +53,18 @@ export function detailOf(text: string, id = 'review', errorCount = 0): PromptDet
   }
 }
 
+export function settingsView(overrides: Partial<SettingsView> = {}): SettingsView {
+  return {
+    launcherHotkey: 'Control+Alt+Space',
+    defaultLauncherHotkey: 'Control+Alt+Space',
+    hotkey: { registered: true, error: null },
+    launchAtLogin: false,
+    launchAtLoginAvailable: true,
+    platform: 'darwin',
+    ...overrides
+  }
+}
+
 type ApiMocks = { [K in keyof RendererApi]: ReturnType<typeof vi.fn<RendererApi[K]>> }
 
 /** Installs a fake `window.api` whose methods are spies with harmless defaults. */
@@ -76,7 +88,33 @@ export function installApi(overrides: Partial<RendererApi> = {}): ApiMocks {
     openFill: vi.fn<RendererApi['openFill']>(async () => ({ remembered: {}, clipboard: '' })),
     readClipboard: vi.fn<RendererApi['readClipboard']>(async () => ''),
     copyPrompt: vi.fn<RendererApi['copyPrompt']>(async () => ({ status: 'copied' })),
+    takePendingAction: vi.fn<RendererApi['takePendingAction']>(async () => ({})),
+    newPromptFromClipboard: vi.fn<RendererApi['newPromptFromClipboard']>(async () => ({
+      status: 'empty'
+    })),
+    getFavorites: vi.fn<RendererApi['getFavorites']>(async () => []),
+    toggleFavorite: vi.fn<RendererApi['toggleFavorite']>(async () => []),
+    getSettings: vi.fn<RendererApi['getSettings']>(async () => settingsView()),
+    setLauncherHotkey: vi.fn<RendererApi['setLauncherHotkey']>(async () => ({
+      ok: true,
+      warning: null,
+      settings: settingsView()
+    })),
+    setLaunchAtLogin: vi.fn<RendererApi['setLaunchAtLogin']>(async () => settingsView()),
+    hideLauncher: vi.fn<RendererApi['hideLauncher']>(async () => undefined),
+    resizeLauncher: vi.fn<RendererApi['resizeLauncher']>(async () => undefined),
+    openInMainWindow: vi.fn<RendererApi['openInMainWindow']>(async () => undefined),
+    openMainWindow: vi.fn<RendererApi['openMainWindow']>(async () => undefined),
+    reportLauncherPaint: vi.fn<RendererApi['reportLauncherPaint']>(async () => undefined),
     onLibraryChanged: vi.fn<RendererApi['onLibraryChanged']>(() => () => undefined),
+    onLauncherSummon: vi.fn<RendererApi['onLauncherSummon']>(() => () => undefined),
+    onLauncherSuggestions: vi.fn<RendererApi['onLauncherSuggestions']>(() => () => undefined),
+    onLauncherHidden: vi.fn<RendererApi['onLauncherHidden']>(() => () => undefined),
+    onFavoritesChanged: vi.fn<RendererApi['onFavoritesChanged']>(() => () => undefined),
+    onSettingsChanged: vi.fn<RendererApi['onSettingsChanged']>(() => () => undefined),
+    onOpenSettings: vi.fn<RendererApi['onOpenSettings']>(() => () => undefined),
+    onSelectPrompt: vi.fn<RendererApi['onSelectPrompt']>(() => () => undefined),
+    onNotice: vi.fn<RendererApi['onNotice']>(() => () => undefined),
     ...Object.fromEntries(
       Object.entries(overrides).map(([name, fn]) => [
         name,

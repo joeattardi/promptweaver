@@ -35,7 +35,27 @@ const api: RendererApi = {
   openFill: (id) => invoke('fill:open', id),
   readClipboard: () => invoke('fill:read-clipboard'),
   copyPrompt: (id, values, clipboard) => invoke('fill:copy', id, values, clipboard),
-  onLibraryChanged: (listener) => subscribe('library:changed', listener)
+  takePendingAction: () => invoke('app:take-pending'),
+  newPromptFromClipboard: () => invoke('prompt:new-from-clipboard'),
+  getFavorites: () => invoke('favorites:list'),
+  toggleFavorite: (id) => invoke('favorites:toggle', id),
+  getSettings: () => invoke('settings:get'),
+  setLauncherHotkey: (accelerator) => invoke('settings:set-hotkey', accelerator),
+  setLaunchAtLogin: (enabled) => invoke('settings:set-launch-at-login', enabled),
+  hideLauncher: () => invoke('launcher:hide'),
+  resizeLauncher: (height) => invoke('launcher:resize', height),
+  openInMainWindow: (id) => invoke('launcher:open-in-main', id),
+  openMainWindow: () => invoke('launcher:open-main'),
+  reportLauncherPaint: (milliseconds) => invoke('launcher:report-paint', milliseconds),
+  onLibraryChanged: (listener) => subscribe('library:changed', listener),
+  onLauncherSummon: (listener) => subscribe('launcher:summon', listener),
+  onLauncherSuggestions: (listener) => subscribe('launcher:suggestions', listener),
+  onLauncherHidden: (listener) => subscribe('launcher:hidden', () => listener()),
+  onFavoritesChanged: (listener) => subscribe('favorites:changed', listener),
+  onSettingsChanged: (listener) => subscribe('settings:changed', listener),
+  onOpenSettings: (listener) => subscribe('app:open-settings', () => listener()),
+  onSelectPrompt: (listener) => subscribe('app:select-prompt', listener),
+  onNotice: (listener) => subscribe('app:notice', listener)
 }
 
 contextBridge.exposeInMainWorld('api', api)

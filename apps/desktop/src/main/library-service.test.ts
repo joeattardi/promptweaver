@@ -74,7 +74,9 @@ describe('first run', () => {
     if (result.state.status !== 'ready') return
     expect(result.state.path).toBe(defaultPath)
     expect(result.state.prompts).toHaveLength(STARTER_PROMPTS.length)
-    expect(JSON.parse(await readFile(settingsPath, 'utf8'))).toEqual({ libraryPath: defaultPath })
+    expect(JSON.parse(await readFile(settingsPath, 'utf8'))).toMatchObject({
+      libraryPath: defaultPath
+    })
 
     // A fresh start finds the same library.
     const next = await createService()

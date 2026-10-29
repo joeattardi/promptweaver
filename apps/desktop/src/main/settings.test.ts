@@ -23,6 +23,20 @@ describe('SettingsStore', () => {
     expect(await readdir(dir)).toEqual([])
   })
 
+  it('defaults the launcher hotkey and launch at login', async () => {
+    const settings = await SettingsStore.open(file)
+    expect(settings.get().launcherHotkey).toBe('Control+Alt+Space')
+    expect(settings.get().launchAtLogin).toBe(false)
+  })
+
+  it('persists the launcher settings', async () => {
+    const settings = await SettingsStore.open(file)
+    await settings.update({ launcherHotkey: 'Control+Alt+K', launchAtLogin: true })
+    const reopened = (await SettingsStore.open(file)).get()
+    expect(reopened.launcherHotkey).toBe('Control+Alt+K')
+    expect(reopened.launchAtLogin).toBe(true)
+  })
+
   it('persists updates and reloads them', async () => {
     const settings = await SettingsStore.open(file)
     await settings.update({ libraryPath: '/Users/me/Prompts' })
@@ -31,10 +45,13 @@ describe('SettingsStore', () => {
   })
 
   it('keeps keys it does not know about', async () => {
-    await writeFile(file, JSON.stringify({ libraryPath: '/a', hotkey: 'Alt+K' }))
+    await writeFile(file, JSON.stringify({ libraryPath: '/a', somethingNew: 'Alt+K' }))
     const settings = await SettingsStore.open(file)
     await settings.update({ libraryPath: '/b' })
-    expect(JSON.parse(await readFile(file, 'utf8'))).toEqual({ libraryPath: '/b', hotkey: 'Alt+K' })
+    expect(JSON.parse(await readFile(file, 'utf8'))).toMatchObject({
+      libraryPath: '/b',
+      somethingNew: 'Alt+K'
+    })
   })
 
   it('moves an unparseable file aside instead of overwriting it', async () => {
