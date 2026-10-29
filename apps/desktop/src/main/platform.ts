@@ -65,7 +65,8 @@ export function launcherWindowOptions(): BrowserWindowConstructorOptions {
       ? {
           type: 'panel' as const,
           // Frosted glass: macOS blurs what is behind the window, and the page tints it.
-          // The window itself must be clear, or its own color hides the effect.
+          // The window must be transparent, or its own backing hides the effect.
+          transparent: true,
           vibrancy: 'popover' as const,
           visualEffectState: 'active' as const,
           backgroundColor: '#00000000'

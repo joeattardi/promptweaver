@@ -23,6 +23,8 @@ html[data-launcher] body {
 /* With vibrancy the surface only tints the material behind it. Lower these to show more of it. */
 html[data-vibrancy] .launcher-surface {
   background-color: rgb(255 255 255 / 0.6);
+  /* A transparent window has no rounded corners of its own. */
+  border-radius: 12px;
 }
 
 @media (prefers-color-scheme: dark) {
