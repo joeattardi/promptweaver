@@ -3,7 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LibraryState, PromptSummary } from '../../../shared/ipc'
 import { useLibrary } from '../library/store'
-import { detailOf, installApi, REVIEW } from '../test/helpers'
+import { useSettings } from '../settings/store'
+import { detailOf, installApi, REVIEW, settingsView } from '../test/helpers'
 import { App } from './App'
 
 const summary = (id: string, title: string): PromptSummary => ({
@@ -37,6 +38,7 @@ const both = [summary('plain', 'Plain'), summary('review', 'Code Review')]
 
 beforeEach(() => {
   useLibrary.setState(useLibrary.getInitialState(), true)
+  useSettings.setState(useSettings.getInitialState(), true)
 })
 
 function libraryApi(overrides = {}) {
@@ -150,5 +152,126 @@ describe('main window', () => {
     await user.click(await screen.findByRole('button', { name: 'Add starter prompts' }))
     await waitFor(() => expect(api.addStarterPrompts).toHaveBeenCalled())
     expect(await screen.findByRole('heading', { level: 2, name: 'Plain' })).toBeInTheDocument()
+  })
+})
+
+describe('main window: working with the launcher', () => {
+  it('saves the clipboard as a new prompt from the header button', async () => {
+    const api = libraryApi({
+      newPromptFromClipboard: async () => ({ status: 'created', id: 'plain', title: 'Plain' })
+    })
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(await screen.findByRole('button', { name: 'New from clipboard' }))
+    expect(api.newPromptFromClipboard).toHaveBeenCalledTimes(1)
+    // The main process then asks for the new prompt to be shown, so there is no error here.
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('says so when there is nothing on the clipboard to save', async () => {
+    libraryApi({ newPromptFromClipboard: async () => ({ status: 'empty' }) })
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(await screen.findByRole('button', { name: 'New from clipboard' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('The clipboard has no text')
+  })
+
+  it('shows the prompt the launcher asks for, clearing any search', async () => {
+    let select: (payload: { id: string }) => void = () => undefined
+    libraryApi({
+      searchPrompts: async () => [summary('plain', 'Plain')],
+      onSelectPrompt: (listener: typeof select) => {
+        select = listener
+        return () => undefined
+      }
+    })
+    const user = userEvent.setup()
+    render(<App />)
+    await screen.findByRole('heading', { level: 2, name: 'Plain' })
+    await user.type(screen.getByRole('combobox', { name: 'Search prompts' }), 'pl')
+    act(() => select({ id: 'review' }))
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Code Review' })
+    ).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Search prompts' })).toHaveValue('')
+  })
+
+  it('waits for a just-created prompt to reach the list before showing it', async () => {
+    let select: (payload: { id: string }) => void = () => undefined
+    let changed: () => void = () => undefined
+    let state = ready(1, both)
+    libraryApi({
+      getLibraryState: async () => state,
+      getPrompt: async (id: string) =>
+        id === 'brand-new'
+          ? detailOf('---\ntitle: Brand New\n---\nHello\n', 'brand-new')
+          : (details[id as keyof typeof details] ?? null),
+      onSelectPrompt: (listener: typeof select) => {
+        select = listener
+        return () => undefined
+      },
+      onLibraryChanged: (listener: () => void) => {
+        changed = listener
+        return () => undefined
+      }
+    })
+    render(<App />)
+    await screen.findByRole('heading', { level: 2, name: 'Plain' })
+    // The request arrives before the window has heard that the file exists.
+    act(() => select({ id: 'brand-new' }))
+    expect(screen.getByRole('heading', { level: 2, name: 'Plain' })).toBeInTheDocument()
+    state = ready(2, [...both, summary('brand-new', 'Brand New')])
+    act(() => changed())
+    expect(await screen.findByRole('heading', { level: 2, name: 'Brand New' })).toBeInTheDocument()
+  })
+
+  it('does what it was opened to do: show a prompt, a message and the settings', async () => {
+    libraryApi({
+      takePendingAction: async () => ({
+        selectId: 'review',
+        notice: 'The clipboard has no text',
+        openSettings: true
+      }),
+      getSettings: async () => settingsView()
+    })
+    render(<App />)
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Code Review' })
+    ).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('The clipboard has no text')
+    expect(await screen.findByRole('dialog', { name: 'Settings' })).toBeInTheDocument()
+  })
+
+  it('opens the settings from the header', async () => {
+    libraryApi({ getSettings: async () => settingsView() })
+    const user = userEvent.setup()
+    render(<App />)
+    await user.click(await screen.findByRole('button', { name: 'Settings…' }))
+    expect(await screen.findByRole('dialog', { name: 'Settings' })).toBeInTheDocument()
+  })
+
+  it('stars and unstars the selected prompt', async () => {
+    const api = libraryApi({ toggleFavorite: async () => ['plain'] })
+    const user = userEvent.setup()
+    render(<App />)
+    const star = await screen.findByRole('button', { name: 'Favorite' })
+    expect(star).toHaveAttribute('aria-pressed', 'false')
+    await user.click(star)
+    expect(api.toggleFavorite).toHaveBeenCalledWith('plain')
+    await waitFor(() => expect(star).toHaveAttribute('aria-pressed', 'true'))
+    expect(screen.getByRole('option', { name: /Plain, favorite/ })).toBeInTheDocument()
+  })
+
+  it('warns when the launcher shortcut could not be registered, and offers to change it', async () => {
+    libraryApi({
+      getSettings: async () =>
+        settingsView({ hotkey: { registered: false, error: '⌃⌥Space is already used.' } })
+    })
+    const user = userEvent.setup()
+    render(<App />)
+    const warning = await screen.findByText(/shortcut isn’t working/)
+    expect(warning.closest('[role=alert]')).toHaveTextContent('⌃⌥Space is already used.')
+    await user.click(screen.getByRole('button', { name: 'Choose a shortcut' }))
+    expect(await screen.findByRole('dialog', { name: 'Settings' })).toBeInTheDocument()
   })
 })

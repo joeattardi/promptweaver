@@ -14,7 +14,14 @@ const COPIED_MS = 2000
  * user has changed, validation, the live preview, and copying. Shared by every window that shows a form.
  * Give the component that calls this `key={promptId}` so each prompt starts fresh.
  */
-export function useFill(detail: PromptDetail, formRef: RefObject<FillFormHandle | null>) {
+export function useFill(
+  detail: PromptDetail,
+  formRef: RefObject<FillFormHandle | null>,
+  options: {
+    /** Use this as the clipboard instead of reading it when the form opens (the launcher's, from the hotkey). */
+    clipboard?: string
+  } = {}
+) {
   const { id } = detail.summary
   const parsed = useMemo(() => parse(detail.source), [detail.source])
   // undefined while loading, null if the prompt is gone.
@@ -53,13 +60,14 @@ export function useFill(detail: PromptDetail, formRef: RefObject<FillFormHandle 
     return () => clearTimeout(timer)
   }, [status])
 
-  const clipboard = refilled ?? session?.clipboard ?? ''
+  const startClipboard = options.clipboard ?? session?.clipboard ?? ''
+  const clipboard = refilled ?? startClipboard
   const values = useMemo<Values>(
     () => ({
-      ...initialValues(detail.form, session?.remembered ?? {}, session?.clipboard ?? ''),
+      ...initialValues(detail.form, session?.remembered ?? {}, startClipboard),
       ...edits
     }),
-    [detail.form, session, edits]
+    [detail.form, session, startClipboard, edits]
   )
   const issues = useMemo(() => validateValues(parsed, values), [parsed, values])
   const preview = useMemo(

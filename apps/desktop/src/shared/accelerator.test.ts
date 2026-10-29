@@ -57,9 +57,22 @@ describe('checkAccelerator', () => {
     })
   })
 
-  it('requires a modifier other than Shift', () => {
-    expect(checkAccelerator('Shift+K')).toMatchObject({ ok: false })
-    expect(checkAccelerator('K')).toMatchObject({ ok: false })
+  it('requires a modifier other than Shift, and says so', () => {
+    expect(checkAccelerator('Shift+K')).toMatchObject({
+      ok: false,
+      reason: expect.stringContaining('Include')
+    })
+    expect(checkAccelerator('K')).toMatchObject({
+      ok: false,
+      reason: expect.stringContaining('Include')
+    })
+  })
+
+  it('says a non-shortcut is not one', () => {
+    expect(checkAccelerator('Hyper+K')).toEqual({
+      ok: false,
+      reason: 'That is not a shortcut this app can use.'
+    })
   })
 
   it('accepts the default', () => {

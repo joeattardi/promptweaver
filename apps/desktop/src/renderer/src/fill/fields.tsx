@@ -9,6 +9,8 @@ export interface FieldProps<F extends FormField = FormField> {
   /** Ids for the element(s) that describe this control (help text, error). */
   describedBy: string | undefined
   invalid: boolean
+  /** Tighter layout, for the launcher's small window. */
+  compact?: boolean
 }
 
 type Of<T extends FormField['type']> = Extract<FormField, { type: T }>
@@ -20,6 +22,26 @@ export const controlClass =
 
 /** Selects with more options than this use a drop-down instead of a list of radio buttons. */
 const MAX_LISTED_OPTIONS = 8
+
+/** A compact list of short, plain choices reads better side by side than one under another. */
+const MAX_INLINE_OPTIONS = 6
+const MAX_INLINE_CHARS = 48
+
+function fitsOnOneLine(options: readonly { label: string; value: string }[]): boolean {
+  return (
+    options.length <= MAX_INLINE_OPTIONS &&
+    options.every((o) => o.value === o.label) &&
+    options.reduce((total, o) => total + o.label.length, 0) <= MAX_INLINE_CHARS
+  )
+}
+
+const listClass = (
+  compact: boolean | undefined,
+  options: readonly { label: string; value: string }[]
+): string =>
+  compact && fitsOnOneLine(options)
+    ? 'flex flex-row flex-wrap gap-x-3 gap-y-0.5'
+    : 'flex flex-col gap-0.5'
 
 export function TextField(props: FieldProps & { id: string }): React.JSX.Element {
   return (
@@ -41,7 +63,7 @@ export function TextareaField(props: FieldProps & { id: string }): React.JSX.Ele
   return (
     <textarea
       id={props.id}
-      rows={5}
+      rows={props.compact ? 4 : 5}
       spellCheck={false}
       value={typeof props.value === 'string' ? props.value : ''}
       aria-invalid={props.invalid}
@@ -151,7 +173,7 @@ export function SelectField(props: FieldProps<Of<'select'>> & { id: string }): R
       aria-describedby={props.describedBy}
       aria-invalid={props.invalid}
       onKeyDown={onKeyDown}
-      className="flex flex-col gap-0.5"
+      className={listClass(props.compact, field.options)}
     >
       {field.options.map((option, index) => (
         <label
@@ -211,7 +233,7 @@ export function MultiselectField(
       aria-labelledby={`${props.id}-label`}
       aria-describedby={props.describedBy}
       onKeyDown={onKeyDown}
-      className="flex flex-col gap-0.5"
+      className={listClass(props.compact, field.options)}
     >
       {field.options.map((option, index) => (
         <label

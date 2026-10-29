@@ -1,4 +1,6 @@
 import { create } from 'zustand'
+import { captureProblem } from '../../../shared/capture'
+import { useSettings } from '../settings/store'
 import type {
   LibraryActionResult,
   LibraryState,
@@ -18,11 +20,19 @@ interface LibraryStore {
   /** Search results for `query`, once they have arrived. */
   hits: PromptSummary[] | null
   selectedId: string | null
+  /** A prompt to select as soon as it appears in the list (one just created or opened from elsewhere). */
+  focusId: string | null
   detail: PromptDetail | null
+  /** Ids of starred prompts. */
+  favoriteIds: string[]
   /** Loads the library and keeps it current. Returns a cleanup function. */
   start: () => () => void
   setQuery: (query: string) => void
   select: (id: string) => void
+  /** Clears the search and selects this prompt, waiting for it to appear if it hasn't yet. */
+  reveal: (id: string) => void
+  toggleFavorite: (id: string) => Promise<void>
+  newFromClipboard: () => Promise<void>
   chooseFolder: () => Promise<void>
   createDefault: () => Promise<void>
   addStarters: () => Promise<void>
@@ -54,7 +64,16 @@ export const useLibrary = create<LibraryStore>()((set, get) => {
   function settleSelection(): void {
     const s = get()
     const list = visiblePrompts(s)
-    const id = list.some((p) => p.id === s.selectedId) ? s.selectedId : (list[0]?.id ?? null)
+    let id: string | null
+    if (s.focusId !== null && list.some((p) => p.id === s.focusId)) {
+      id = s.focusId
+      set({ focusId: null })
+    } else if (s.focusId !== null && s.state?.status === 'ready') {
+      // Asked for a prompt that the list doesn't have yet: stay where we are until it arrives.
+      id = s.selectedId
+    } else {
+      id = list.some((p) => p.id === s.selectedId) ? s.selectedId : (list[0]?.id ?? null)
+    }
     if (id !== s.selectedId) set({ selectedId: id })
     void loadDetail(id)
   }
@@ -113,16 +132,32 @@ export const useLibrary = create<LibraryStore>()((set, get) => {
     query: '',
     hits: null,
     selectedId: null,
+    focusId: null,
     detail: null,
+    favoriteIds: [],
 
     start() {
-      void window.api.getAppInfo().then((info) => set({ appName: info.name }))
+      const api = window.api
+      const offs = [
+        api.onLibraryChanged(() => void refresh()),
+        api.onFavoritesChanged(({ ids }) => set({ favoriteIds: ids })),
+        api.onSelectPrompt(({ id }) => get().reveal(id)),
+        api.onNotice(({ message }) => set({ notice: message }))
+      ]
+      void api.getAppInfo().then((info) => set({ appName: info.name }))
+      void api.getFavorites().then((ids) => set({ favoriteIds: ids }))
       void refresh()
-      return window.api.onLibraryChanged(() => void refresh())
+      // Subscribed first, so nothing the main process sends from here on is missed.
+      void api.takePendingAction().then((action) => {
+        if (action.selectId !== undefined) get().reveal(action.selectId)
+        if (action.notice !== undefined) set({ notice: action.notice })
+        if (action.openSettings) useSettings.getState().show()
+      })
+      return () => offs.forEach((off) => off())
     },
 
     setQuery(query) {
-      set({ query })
+      set({ query, focusId: null })
       if (query.trim() === '') {
         searchSeq++
         set({ hits: null })
@@ -133,8 +168,36 @@ export const useLibrary = create<LibraryStore>()((set, get) => {
     },
 
     select(id) {
-      set({ selectedId: id })
+      set({ selectedId: id, focusId: null })
       void loadDetail(id)
+    },
+
+    reveal(id) {
+      searchSeq++
+      set({ query: '', hits: null, focusId: id })
+      settleSelection()
+    },
+
+    async toggleFavorite(id) {
+      try {
+        set({ favoriteIds: await window.api.toggleFavorite(id) })
+      } catch (error) {
+        set({
+          notice: `Couldn’t change the favorite: ${error instanceof Error ? error.message : String(error)}`
+        })
+      }
+    },
+
+    async newFromClipboard() {
+      try {
+        const result = await window.api.newPromptFromClipboard()
+        // On success the main process asks this window to show the new prompt.
+        set({ notice: captureProblem(result) })
+      } catch (error) {
+        set({
+          notice: `Something went wrong: ${error instanceof Error ? error.message : String(error)}`
+        })
+      }
     },
 
     chooseFolder: () => act(() => window.api.chooseLibraryFolder()),

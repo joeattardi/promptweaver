@@ -80,14 +80,18 @@ export type AcceleratorCheck = { ok: true; accelerator: string } | { ok: false; 
  * fire while typing in every app.
  */
 export function checkAccelerator(text: string): AcceleratorCheck {
+  const needsModifier = {
+    ok: false,
+    reason: 'Include Ctrl, Alt, Option or Command, so it doesn’t trigger while typing.'
+  } as const
   const parsed = parseAccelerator(text)
-  if (parsed === null) return { ok: false, reason: 'That is not a shortcut this app can use.' }
-  if (parsed.modifiers.every((m) => m === 'Shift')) {
-    return {
-      ok: false,
-      reason: 'Include Ctrl, Alt, Option or Command, so it doesn’t trigger while typing.'
-    }
+  if (parsed === null) {
+    // A bare key is a fine key that just needs a modifier; anything else isn't a shortcut at all.
+    return normalizeKey(text.trim()) !== null
+      ? needsModifier
+      : { ok: false, reason: 'That is not a shortcut this app can use.' }
   }
+  if (parsed.modifiers.every((m) => m === 'Shift')) return needsModifier
   return { ok: true, accelerator: stringifyAccelerator(parsed) }
 }
 

@@ -28,6 +28,8 @@ export interface FillFormProps {
   issues?: readonly ValueIssue[]
   /** Focus the first field when the form appears. */
   autoFocus?: boolean
+  /** Tighter spacing and short choices side by side, for the launcher's small window. */
+  compact?: boolean
   /** Shown inside the form after the last field, such as the Copy button. */
   footer?: ReactNode
   ref?: Ref<FillFormHandle>
@@ -46,6 +48,7 @@ export function FillForm({
   onSubmit,
   onRefill,
   autoFocus = false,
+  compact = false,
   footer,
   ref
 }: FillFormProps): React.JSX.Element {
@@ -86,7 +89,7 @@ export function FillForm({
       noValidate
       onSubmit={(e) => e.preventDefault()}
       onKeyDown={onKeyDown}
-      className="flex flex-col gap-4"
+      className={`flex flex-col ${compact ? 'gap-3' : 'gap-4'}`}
     >
       {form.fields.map((field) => (
         <Question
@@ -96,6 +99,7 @@ export function FillForm({
           issue={issues.find((i) => i.fieldId === field.id)}
           onChange={(value) => onChange(field.id, value)}
           onRefill={onRefill ? () => onRefill(field.id) : undefined}
+          compact={compact}
         />
       ))}
       {footer}
@@ -109,6 +113,7 @@ function Question(props: {
   issue: ValueIssue | undefined
   onRefill: (() => void) | undefined
   onChange: (value: FieldValue) => void
+  compact: boolean
 }): React.JSX.Element {
   const { field, issue } = props
   const id = useId()
@@ -122,7 +127,8 @@ function Question(props: {
     value: props.value,
     onChange: props.onChange,
     describedBy,
-    invalid: issue !== undefined
+    invalid: issue !== undefined,
+    compact: props.compact
   }
   const inline = field.type === 'toggle'
 

@@ -3,6 +3,7 @@ import type { FormField } from 'prompt-lang'
 import type { DiagnosticView } from '../../../shared/library'
 import type { PromptDetail } from '../../../shared/ipc'
 import { FillPanel } from '../fill/FillPanel'
+import { StarIcon } from '../icons'
 import { useLibrary, type ReadyLibrary } from './store'
 
 const SEVERITY_LABEL: Record<DiagnosticView['severity'], string> = {
@@ -64,7 +65,10 @@ function Detail(props: { detail: PromptDetail; library: ReadyLibrary }): React.J
   return (
     <section ref={scrollRef} aria-label="Prompt details" className="min-h-0 overflow-y-auto p-6">
       <header>
-        <h2 className="text-xl font-semibold tracking-tight">{summary.title}</h2>
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-xl font-semibold tracking-tight">{summary.title}</h2>
+          <FavoriteButton id={summary.id} />
+        </div>
         <p className="mt-0.5 font-mono text-xs text-zinc-500 dark:text-zinc-400">{summary.id}.md</p>
         {summary.description !== '' && <p className="mt-3">{summary.description}</p>}
       </header>
@@ -109,6 +113,27 @@ function Detail(props: { detail: PromptDetail; library: ReadyLibrary }): React.J
         )}
       </div>
     </section>
+  )
+}
+
+/** Stars the prompt so the quick launcher lists it first. */
+function FavoriteButton(props: { id: string }): React.JSX.Element {
+  const favorite = useLibrary((s) => s.favoriteIds.includes(props.id))
+  return (
+    <button
+      type="button"
+      aria-pressed={favorite}
+      onClick={() => void useLibrary.getState().toggleFavorite(props.id)}
+      title={favorite ? 'Remove from favorites' : 'Add to favorites (shown first in the launcher)'}
+      className={`flex shrink-0 items-center gap-1.5 rounded-md border px-2 py-1 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${
+        favorite
+          ? 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100'
+          : 'border-zinc-300 text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800'
+      }`}
+    >
+      <StarIcon filled={favorite} className="size-4" />
+      Favorite
+    </button>
   )
 }
 

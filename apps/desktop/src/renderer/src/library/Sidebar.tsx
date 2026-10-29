@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import type { PromptSummary } from '../../../shared/ipc'
+import { StarIcon } from '../icons'
 import { useLibrary, visiblePrompts } from './store'
 
 type Row =
@@ -135,6 +136,7 @@ function PromptOption(props: {
   onSelect: () => void
 }): React.JSX.Element {
   const { prompt } = props
+  const favorite = useLibrary((s) => s.favoriteIds.includes(prompt.id))
   const flags = [
     prompt.errorCount > 0
       ? `${prompt.errorCount} ${prompt.errorCount === 1 ? 'error' : 'errors'}`
@@ -148,12 +150,18 @@ function PromptOption(props: {
       id={optionId(props.index)}
       role="option"
       aria-selected={props.selected}
-      aria-label={`${prompt.title}${prompt.folder ? `, in ${prompt.folder}` : ''}${flags.length ? `, ${flags.join(', ')}` : ''}`}
+      aria-label={`${prompt.title}${favorite ? ', favorite' : ''}${prompt.folder ? `, in ${prompt.folder}` : ''}${flags.length ? `, ${flags.join(', ')}` : ''}`}
       onClick={props.onSelect}
-      className="mx-2 cursor-pointer rounded-md px-2 py-1.5 aria-selected:bg-blue-600 aria-selected:text-white hover:bg-zinc-100 aria-selected:hover:bg-blue-600 dark:hover:bg-zinc-800"
+      className="group mx-2 cursor-pointer rounded-md px-2 py-1.5 aria-selected:bg-blue-600 aria-selected:text-white hover:bg-zinc-100 aria-selected:hover:bg-blue-600 dark:hover:bg-zinc-800"
     >
       <div className="flex items-baseline justify-between gap-2">
         <span className="truncate text-sm font-medium">{prompt.title}</span>
+        {favorite && (
+          <StarIcon
+            filled
+            className="size-3.5 shrink-0 text-amber-500 group-aria-selected:text-white"
+          />
+        )}
         {flags.length > 0 && (
           <span className="shrink-0 rounded bg-amber-100 px-1.5 text-xs text-amber-900 dark:bg-amber-900 dark:text-amber-100">
             {flags.join(' · ')}

@@ -1,6 +1,7 @@
 import type { LibraryProblem } from '../../../shared/library'
 import { DetailPane } from './DetailPane'
 import { Sidebar } from './Sidebar'
+import { useSettings } from '../settings/store'
 import { useLibrary, type ReadyLibrary } from './store'
 import { buttonClass, Notice, primaryButtonClass } from './ui'
 
@@ -10,7 +11,8 @@ export function Browser(props: { library: ReadyLibrary }): React.JSX.Element {
   const notice = useLibrary((s) => s.notice)
   const busy = useLibrary((s) => s.busy)
   const query = useLibrary((s) => s.query)
-  const { chooseFolder, dismissNotice } = useLibrary.getState()
+  const hotkey = useSettings((s) => s.view?.hotkey)
+  const { dismissNotice, newFromClipboard } = useLibrary.getState()
   const isEmpty = library.prompts.length === 0 && query === ''
 
   return (
@@ -28,19 +30,32 @@ export function Browser(props: { library: ReadyLibrary }): React.JSX.Element {
             {library.prompts.length} {library.prompts.length === 1 ? 'prompt' : 'prompts'}
           </p>
         </div>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => void chooseFolder()}
-          className={buttonClass}
-        >
-          Change folder…
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void newFromClipboard()}
+            className={buttonClass}
+          >
+            New from clipboard
+          </button>
+          <button
+            type="button"
+            onClick={() => useSettings.getState().show()}
+            className={buttonClass}
+          >
+            Settings…
+          </button>
+        </div>
       </header>
 
-      {(notice !== null || library.aliasConflicts.length > 0 || library.problems.length > 0) && (
+      {(notice !== null ||
+        hotkey?.registered === false ||
+        library.aliasConflicts.length > 0 ||
+        library.problems.length > 0) && (
         <div className="flex flex-col gap-2 border-b border-zinc-200 p-3 dark:border-zinc-700">
           {notice !== null && <Notice message={notice} onDismiss={dismissNotice} />}
+          {hotkey?.registered === false && <HotkeyProblem message={hotkey.error} />}
           {library.aliasConflicts.length > 0 && (
             <AliasConflicts conflicts={library.aliasConflicts} />
           )}
@@ -56,6 +71,28 @@ export function Browser(props: { library: ReadyLibrary }): React.JSX.Element {
           <DetailPane library={library} />
         </div>
       )}
+    </div>
+  )
+}
+
+/** The launcher shortcut isn't registered, so the main feature can't be reached: say so and offer the fix. */
+function HotkeyProblem(props: { message: string | null }): React.JSX.Element {
+  return (
+    <div
+      role="alert"
+      className="flex items-start justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
+    >
+      <p>
+        <span className="font-medium">The quick launcher shortcut isn’t working.</span>{' '}
+        {props.message ?? 'It could not be registered.'}
+      </p>
+      <button
+        type="button"
+        onClick={() => useSettings.getState().show()}
+        className={`${buttonClass} shrink-0 py-0.5`}
+      >
+        Choose a shortcut
+      </button>
     </div>
   )
 }

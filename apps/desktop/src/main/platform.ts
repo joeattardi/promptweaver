@@ -2,7 +2,12 @@
 // Only macOS has been tried so far (see "Open questions" in CLAUDE.md); the
 // other branches are the documented Electron behavior, not yet tested.
 
-import { app, type BrowserWindow, type BrowserWindowConstructorOptions } from 'electron'
+import {
+  app,
+  nativeTheme,
+  type BrowserWindow,
+  type BrowserWindowConstructorOptions
+} from 'electron'
 import { LAUNCHER_INITIAL_HEIGHT, LAUNCHER_WIDTH } from './launcher-geometry'
 
 export const isMac = process.platform === 'darwin'
@@ -54,19 +59,24 @@ export function launcherWindowOptions(): BrowserWindowConstructorOptions {
     skipTaskbar: true,
     alwaysOnTop: true,
     hasShadow: true,
-    ...(isMac
-      ? {
-          type: 'panel' as const,
-          vibrancy: 'popover' as const,
-          visualEffectState: 'active' as const,
-          roundedCorners: true
-        }
-      : { backgroundColor: '#18181b' })
+    // The window is the page's solid background, so it must match the page's light or dark surface.
+    backgroundColor: launcherBackground(),
+    // The system rounds the corners of a frameless window (macOS, Windows 11); the page doesn't.
+    roundedCorners: true,
+    ...(isMac ? { type: 'panel' as const } : {})
   }
+}
+
+/** The launcher surface's color (see `.launcher-surface` in styles.css), by the system's light or dark setting. */
+function launcherBackground(): string {
+  return nativeTheme.shouldUseDarkColors ? '#18181b' : '#ffffff'
 }
 
 /** One-time setup after the launcher window exists. */
 export function configureLauncherWindow(win: BrowserWindow): void {
+  nativeTheme.on('updated', () => {
+    if (!win.isDestroyed()) win.setBackgroundColor(launcherBackground())
+  })
   // Above everything, including full-screen apps' windows.
   win.setAlwaysOnTop(true, 'screen-saver')
   if (isMac) {
