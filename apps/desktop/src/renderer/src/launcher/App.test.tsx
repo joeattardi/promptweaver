@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LauncherSuggestions, LauncherSummon, PromptSummary } from '../../../shared/ipc'
 import { detailOf, installApi, REVIEW } from '../test/helpers'
 import { App } from './App'
@@ -55,6 +55,7 @@ function setup(overrides: Parameters<typeof installApi>[0] = {}) {
   const summonListeners = new Set<(message: LauncherSummon) => void>()
   const hiddenListeners = new Set<() => void>()
   const shownListeners = new Set<() => void>()
+  const closingListeners = new Set<() => void>()
   const suggestionListeners = new Set<(s: LauncherSuggestions) => void>()
   const subscribe = <T,>(set: Set<T>) => {
     return (listener: T) => {
@@ -66,6 +67,7 @@ function setup(overrides: Parameters<typeof installApi>[0] = {}) {
     onLauncherSummon: subscribe(summonListeners),
     onLauncherHidden: subscribe(hiddenListeners),
     onLauncherShown: subscribe(shownListeners),
+    onLauncherClosing: subscribe(closingListeners),
     onLauncherSuggestions: subscribe(suggestionListeners),
     searchPrompts: async (query) =>
       [REVIEW_PROMPT, PLAIN_PROMPT, CODE_PROMPT].filter(
@@ -91,6 +93,7 @@ function setup(overrides: Parameters<typeof installApi>[0] = {}) {
       }),
     hide: () => act(() => hiddenListeners.forEach((listener) => listener())),
     shown: () => act(() => shownListeners.forEach((listener) => listener())),
+    closing: () => act(() => closingListeners.forEach((listener) => listener())),
     pushSuggestions: (s: LauncherSuggestions) =>
       act(() => suggestionListeners.forEach((listener) => listener(s)))
   }
@@ -433,5 +436,73 @@ describe('launcher: sizing', () => {
     setup({ resizeLauncher: async (height) => void resizes.push(height) })
     await waitFor(() => expect(resizes).toEqual([124]))
     vi.unstubAllGlobals()
+  })
+})
+
+describe('launcher: motion', () => {
+  /** jsdom can't animate; record what the page asks for. */
+  function recordAnimations() {
+    const calls: { element: Element; keyframes: Keyframe[]; options: KeyframeAnimationOptions }[] =
+      []
+    Element.prototype.animate = function animate(
+      this: Element,
+      keyframes: Keyframe[],
+      options: KeyframeAnimationOptions
+    ) {
+      calls.push({ element: this, keyframes, options })
+      return { cancel: () => undefined, onfinish: null } as unknown as Animation
+    } as typeof Element.prototype.animate
+    return calls
+  }
+  const panel = () => document.querySelector<HTMLElement>('.launcher-surface') as HTMLElement
+
+  afterEach(() => {
+    // @ts-expect-error put jsdom back as it was: no animation support
+    delete Element.prototype.animate
+  })
+
+  it('is parked invisible until summoned, so a show never flashes it', async () => {
+    recordAnimations()
+    setup()
+    expect(panel().style.opacity).toBe('0')
+  })
+
+  it('opens the panel when summoned, and its rows after it', async () => {
+    const calls = recordAnimations()
+    const { summon } = setup()
+    await summon()
+    const onPanel = calls.filter((c) => c.element === panel())
+    expect(onPanel).toHaveLength(1)
+    expect(onPanel[0]?.keyframes[0]).toMatchObject({ opacity: 0 })
+    expect(panel().style.opacity).toBe('')
+    const rows = calls.filter((c) => c.element.getAttribute('role') === 'option')
+    expect(rows.length).toBeGreaterThan(0)
+  })
+
+  it('opens again for every summon', async () => {
+    const calls = recordAnimations()
+    const { summon } = setup()
+    await summon()
+    await summon()
+    expect(calls.filter((c) => c.element === panel())).toHaveLength(2)
+  })
+
+  it('closes the panel when told it is about to hide, and keeps it gone', async () => {
+    const calls = recordAnimations()
+    const { summon, closing } = setup()
+    await summon()
+    await closing()
+    const last = calls.filter((c) => c.element === panel()).at(-1)
+    expect(last?.keyframes[1]).toMatchObject({ opacity: 0 })
+    expect(last?.options.fill).toBe('forwards')
+  })
+
+  it('parks the panel again once the window is hidden', async () => {
+    recordAnimations()
+    const { summon, hide } = setup()
+    await summon()
+    expect(panel().style.opacity).toBe('')
+    await hide()
+    expect(panel().style.opacity).toBe('0')
   })
 })
