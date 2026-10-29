@@ -109,6 +109,7 @@ export function installApi(overrides: Partial<RendererApi> = {}): ApiMocks {
     onLibraryChanged: vi.fn<RendererApi['onLibraryChanged']>(() => () => undefined),
     onLauncherSummon: vi.fn<RendererApi['onLauncherSummon']>(() => () => undefined),
     onLauncherSuggestions: vi.fn<RendererApi['onLauncherSuggestions']>(() => () => undefined),
+    onLauncherShown: vi.fn<RendererApi['onLauncherShown']>(() => () => undefined),
     onLauncherHidden: vi.fn<RendererApi['onLauncherHidden']>(() => () => undefined),
     onFavoritesChanged: vi.fn<RendererApi['onFavoritesChanged']>(() => () => undefined),
     onSettingsChanged: vi.fn<RendererApi['onSettingsChanged']>(() => () => undefined),

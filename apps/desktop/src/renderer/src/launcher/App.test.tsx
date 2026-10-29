@@ -54,6 +54,7 @@ function setup(overrides: Parameters<typeof installApi>[0] = {}) {
   // More than one part of the page listens for each message, as in the real thing.
   const summonListeners = new Set<(message: LauncherSummon) => void>()
   const hiddenListeners = new Set<() => void>()
+  const shownListeners = new Set<() => void>()
   const suggestionListeners = new Set<(s: LauncherSuggestions) => void>()
   const subscribe = <T,>(set: Set<T>) => {
     return (listener: T) => {
@@ -64,6 +65,7 @@ function setup(overrides: Parameters<typeof installApi>[0] = {}) {
   const api = installApi({
     onLauncherSummon: subscribe(summonListeners),
     onLauncherHidden: subscribe(hiddenListeners),
+    onLauncherShown: subscribe(shownListeners),
     onLauncherSuggestions: subscribe(suggestionListeners),
     searchPrompts: async (query) =>
       [REVIEW_PROMPT, PLAIN_PROMPT, CODE_PROMPT].filter(
@@ -88,6 +90,7 @@ function setup(overrides: Parameters<typeof installApi>[0] = {}) {
         summonListeners.forEach((listener) => listener(full))
       }),
     hide: () => act(() => hiddenListeners.forEach((listener) => listener())),
+    shown: () => act(() => shownListeners.forEach((listener) => listener())),
     pushSuggestions: (s: LauncherSuggestions) =>
       act(() => suggestionListeners.forEach((listener) => listener(s)))
   }
@@ -383,16 +386,31 @@ describe('launcher: before there is a library', () => {
 })
 
 describe('launcher: measuring', () => {
-  it('reports the time from the hotkey to the first paint when asked to', async () => {
-    const { summon, api } = setup()
+  it('reports the time from the hotkey to the first paint once the window is shown', async () => {
+    const { summon, shown, api } = setup()
     await summon({ pressedAt: Date.now() - 5 })
+    // Nothing yet: the page keeps rendering while hidden, so only the window being shown counts.
+    await new Promise((resolve) => setTimeout(resolve, 60))
+    expect(api.reportLauncherPaint).not.toHaveBeenCalled()
+    await shown()
     await waitFor(() => expect(api.reportLauncherPaint).toHaveBeenCalledTimes(1))
-    expect(api.reportLauncherPaint.mock.calls[0]?.[0]).toBeGreaterThanOrEqual(5)
+    expect(api.reportLauncherPaint.mock.calls[0]?.[0]).toBeGreaterThanOrEqual(60)
   })
 
-  it('reports nothing otherwise', async () => {
-    const { summon, api } = setup()
+  it('reports once per summon', async () => {
+    const { summon, shown, api } = setup()
+    await summon({ pressedAt: Date.now() })
+    await shown()
+    await shown()
+    await waitFor(() => expect(api.reportLauncherPaint).toHaveBeenCalledTimes(1))
+    await new Promise((resolve) => setTimeout(resolve, 60))
+    expect(api.reportLauncherPaint).toHaveBeenCalledTimes(1)
+  })
+
+  it('reports nothing when not measuring', async () => {
+    const { summon, shown, api } = setup()
     await summon({ pressedAt: null })
+    await shown()
     await new Promise((resolve) => setTimeout(resolve, 60))
     expect(api.reportLauncherPaint).not.toHaveBeenCalled()
   })

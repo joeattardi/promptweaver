@@ -156,6 +156,8 @@ export interface IpcEventContract {
   'launcher:summon': LauncherSummon
   /** The launcher's empty-search view changed while it is open (the library finished loading, say). */
   'launcher:suggestions': LauncherSuggestions
+  /** The launcher window was just ordered to the front (sent only while measuring performance). */
+  'launcher:shown': Record<string, never>
   /** The launcher was hidden, by any route. Reset it so the next show starts clean. */
   'launcher:hidden': Record<string, never>
   'favorites:changed': { ids: string[] }
@@ -199,6 +201,7 @@ export interface RendererApi {
   onLibraryChanged(listener: (payload: IpcEventPayload<'library:changed'>) => void): () => void
   onLauncherSummon(listener: (payload: LauncherSummon) => void): () => void
   onLauncherSuggestions(listener: (payload: LauncherSuggestions) => void): () => void
+  onLauncherShown(listener: () => void): () => void
   onLauncherHidden(listener: () => void): () => void
   onFavoritesChanged(listener: (payload: IpcEventPayload<'favorites:changed'>) => void): () => void
   onSettingsChanged(listener: (payload: SettingsView) => void): () => void

@@ -85,6 +85,9 @@ export class LauncherController {
       this.win.webContents.send('launcher:summon', summon)
       this.shownAt = Date.now()
       showLauncherWindow(this.win)
+      // The page keeps rendering while hidden, so it can't tell when it was shown: say so now.
+      // (Electron's own 'show' event arrives late, and not at all if the window is hidden again quickly.)
+      if (this.deps.measure) this.win.webContents.send('launcher:shown', {})
       if (this.deps.measure) {
         const done = Date.now()
         this.deps.log(

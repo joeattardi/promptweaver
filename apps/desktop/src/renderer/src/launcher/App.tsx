@@ -66,29 +66,30 @@ function useFitWindowToContent(root: React.RefObject<HTMLDivElement | null>): vo
 }
 
 /**
- * When the main process says how long ago the hotkey was pressed, report the
- * time until the first frame was painted with the launcher on screen. Only
- * happens while performance is being measured.
+ * When the main process says the hotkey was pressed at a certain moment (only while
+ * performance is being measured), report how long it took until the first frame was
+ * painted with the window on screen. The page keeps rendering while hidden, so the
+ * main process says when the window is actually shown.
  */
 function useReportFirstPaint(): void {
-  useEffect(
-    () =>
+  useEffect(() => {
+    let pressedAt: number | null = null
+    const offs = [
       window.api.onLauncherSummon((summon) => {
-        const { pressedAt } = summon
-        if (pressedAt === null) return
-        const report = (): void => {
-          // Two frames: the first applies the new content, the second is on screen.
-          requestAnimationFrame(() =>
-            requestAnimationFrame(() => {
-              void window.api.reportLauncherPaint(Date.now() - pressedAt)
-            })
-          )
-        }
-        if (document.visibilityState === 'visible') report()
-        else {
-          document.addEventListener('visibilitychange', report, { once: true })
-        }
+        pressedAt = summon.pressedAt
       }),
-    []
-  )
+      window.api.onLauncherShown(() => {
+        const started = pressedAt
+        if (started === null) return
+        pressedAt = null
+        // Two frames: the first applies the new content, the second is on screen.
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            void window.api.reportLauncherPaint(Date.now() - started)
+          })
+        )
+      })
+    ]
+    return () => offs.forEach((off) => off())
+  }, [])
 }

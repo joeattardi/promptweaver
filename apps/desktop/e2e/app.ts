@@ -31,14 +31,29 @@ export async function makeSandbox(options: { withLibrary?: boolean } = {}): Prom
   return { dataDir, libraryDir, cleanup: () => rm(root, { recursive: true, force: true }) }
 }
 
+export interface LaunchOptions {
+  /** Shortcuts the app should find already taken by another app. */
+  takenShortcuts?: string[]
+}
+
+/** The shortcut that summons the launcher on a fresh install. */
+export const DEFAULT_HOTKEY = 'Control+Alt+Space'
+
 export interface Launched {
   app: ElectronApplication
   /** The main window. */
   main: Page
-  /** The (hidden) quick launcher window. */
+  /** The quick launcher window (hidden until summoned). */
   launcher: Page
   /** Text on the app's fake clipboard. */
   clipboard: { read(): Promise<string>; write(text: string): Promise<void> }
+  /** Presses a global shortcut, as the operating system would. False if nothing is registered for it. */
+  press(accelerator?: string): Promise<boolean>
+  /** Whether the launcher window is on screen right now. */
+  launcherVisible(): Promise<boolean>
+  launcherBounds(): Promise<{ x: number; y: number; width: number; height: number }>
+  /** Lines the app printed with a `[perf]` prefix, oldest first. */
+  perfLines(): string[]
   close(): Promise<void>
 }
 
@@ -59,13 +74,24 @@ async function windowAt(app: ElectronApplication, file: string): Promise<Page> {
  * Starts the built app against a sandbox. The clipboard is replaced by an in-memory
  * one inside the app, so tests never read or overwrite the real system clipboard.
  */
-export async function launch(sandbox: Sandbox): Promise<Launched> {
+export async function launch(sandbox: Sandbox, options: LaunchOptions = {}): Promise<Launched> {
   const env = { ...process.env } as Record<string, string>
   // Some editor-integrated shells set this, and Electron then runs as plain Node.
   delete env['ELECTRON_RUN_AS_NODE']
+  // In-memory shortcuts that a test can press, and timing lines on stdout.
+  env['PROMPTWEAVER_TEST_HOOKS'] = '1'
+  env['PROMPTWEAVER_PERF'] = '1'
+  env['PROMPTWEAVER_TEST_TAKEN_SHORTCUTS'] = (options.takenShortcuts ?? []).join(',')
   const app = await electron.launch({
     args: [appDir, `--user-data-dir=${sandbox.dataDir}`],
     env
+  })
+  const perf: string[] = []
+  let partial = ''
+  app.process().stdout?.on('data', (chunk: Buffer) => {
+    const lines = (partial + chunk.toString()).split('\n')
+    partial = lines.pop() ?? ''
+    perf.push(...lines.filter((line) => line.startsWith('[perf]')))
   })
   await app.evaluate(({ clipboard }) => {
     const fake = { text: '' }
@@ -88,7 +114,28 @@ export async function launch(sandbox: Sandbox): Promise<Launched> {
         if (fake) fake.text = t
       }, text)
   }
-  return { app, main, launcher, clipboard, close: () => app.close() }
+  const launcherWindow = (): Promise<{ visible: boolean; bounds: Electron.Rectangle }> =>
+    app.evaluate(({ BrowserWindow }) => {
+      const win = BrowserWindow.getAllWindows().find((w) => w.getBounds().width === 640)
+      if (!win) throw new Error('No launcher window')
+      return { visible: win.isVisible(), bounds: win.getBounds() }
+    })
+  return {
+    app,
+    main,
+    launcher,
+    clipboard,
+    press: (accelerator = DEFAULT_HOTKEY) =>
+      app.evaluate(({ app: electronApp }, key) => {
+        const reply = { pressed: false }
+        electronApp.emit('promptweaver:press', key, reply)
+        return reply.pressed
+      }, accelerator),
+    launcherVisible: async () => (await launcherWindow()).visible,
+    launcherBounds: async () => (await launcherWindow()).bounds,
+    perfLines: () => [...perf],
+    close: () => app.close()
+  }
 }
 
 export async function readJson(path: string): Promise<unknown> {

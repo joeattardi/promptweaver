@@ -50,6 +50,7 @@ const api: RendererApi = {
   onLibraryChanged: (listener) => subscribe('library:changed', listener),
   onLauncherSummon: (listener) => subscribe('launcher:summon', listener),
   onLauncherSuggestions: (listener) => subscribe('launcher:suggestions', listener),
+  onLauncherShown: (listener) => subscribe('launcher:shown', () => listener()),
   onLauncherHidden: (listener) => subscribe('launcher:hidden', () => listener()),
   onFavoritesChanged: (listener) => subscribe('favorites:changed', listener),
   onSettingsChanged: (listener) => subscribe('settings:changed', listener),

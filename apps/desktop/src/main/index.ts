@@ -4,7 +4,7 @@ import { pathToFileURL } from 'node:url'
 import { DEFAULT_LAUNCHER_HOTKEY } from '../shared/accelerator'
 import { CaptureService } from './capture-service'
 import { FillService } from './fill-service'
-import { HotkeyManager } from './hotkey'
+import { HotkeyManager, type ShortcutApi } from './hotkey'
 import { broadcast } from './ipc'
 import { newPromptFromClipboard, registerIpc, type IpcDeps } from './ipc-handlers'
 import { Library } from './library/library'
@@ -24,6 +24,7 @@ import { applySecurityPolicy, type TrustedOrigins } from './security'
 import { MiniSearchIndex } from './search/minisearch-index'
 import { SettingsStore } from './settings'
 import { StateStore } from './state'
+import { createFakeShortcuts } from './test-hooks'
 import { AppTray } from './tray'
 import { createLauncherWindow, createMainWindow } from './windows'
 
@@ -140,7 +141,15 @@ async function start(): Promise<void> {
     refresh: (paths) => service.refresh(paths)
   })
 
-  const hotkey = new HotkeyManager(globalShortcut, () => launcher.toggle(), process.platform)
+  // The end-to-end tests use in-memory shortcuts, so they never take the real one from the developer.
+  const testHooks = process.env['PROMPTWEAVER_TEST_HOOKS'] === '1'
+  const fake = testHooks
+    ? createFakeShortcuts(
+        (process.env['PROMPTWEAVER_TEST_TAKEN_SHORTCUTS'] ?? '').split(',').filter(Boolean)
+      )
+    : null
+  const shortcuts: ShortcutApi = fake?.shortcuts ?? globalShortcut
+  const hotkey = new HotkeyManager(shortcuts, () => launcher.toggle(), process.platform)
   const saved = settings.get().launcherHotkey
   // A hand-edited or corrupt shortcut shouldn't leave the launcher unreachable.
   if (!hotkey.apply(saved).ok && saved !== DEFAULT_LAUNCHER_HOTKEY) {
@@ -188,10 +197,12 @@ async function start(): Promise<void> {
   app.on('second-instance', () => main.open())
   app.on('activate', () => main.open())
 
-  // Test hooks: the global shortcut can't be pressed from a test, so let the tests ask for it.
-  if (process.env['PROMPTWEAVER_TEST_HOOKS'] === '1') {
+  // A test can't press a global shortcut, so it asks the app to, through the app's event emitter.
+  if (fake !== null) {
     const hooks = app as unknown as NodeJS.EventEmitter
-    hooks.on('promptweaver:summon', () => launcher.toggle())
+    hooks.on('promptweaver:press', (accelerator: string, reply: { pressed: boolean }) => {
+      reply.pressed = fake.press(accelerator)
+    })
   }
 
   void service.start()
